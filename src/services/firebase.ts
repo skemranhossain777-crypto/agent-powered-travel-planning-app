@@ -1,5 +1,6 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAI, GoogleAIBackend, AI } from 'firebase/ai';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyBuKBkPIRh-ARdun4uWpnLdP2mh0SYTur8',
@@ -13,6 +14,7 @@ export const FIREBASE_CONFIG = {
 
 let firebaseApp: FirebaseApp | null = null;
 let aiInstance: AI | null = null;
+let appCheckInitialized = false;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!firebaseApp) {
@@ -22,11 +24,52 @@ export function getFirebaseApp(): FirebaseApp {
 }
 
 /**
+ * Firebase AI Logic (Gemini Developer API) enforces Firebase App Check
+ * (mandatory since July 2026), so calls only succeed with a valid App Check
+ * token. This wires up App Check:
+ *  - Development: enable debug mode using `VITE_APPCHECK_DEBUG_TOKEN`
+ *    (see `.env.local`, which is gitignored). No reCAPTCHA is loaded.
+ *  - Production: provide a real reCAPTCHA v3 site key via
+ *    `VITE_RECAPTCHA_SITE_KEY` and enforce it in the Firebase console.
+ */
+function initAppCheck(): void {
+  if (appCheckInitialized) {
+    return;
+  }
+  appCheckInitialized = true;
+
+  const app = getFirebaseApp();
+
+  const debugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN as string | undefined;
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+
+  if (!debugToken && !recaptchaSiteKey) {
+    console.warn(
+      '[Firebase] App Check is not configured. AI Logic requests will be rejected until ' +
+        'a debug token (VITE_APPCHECK_DEBUG_TOKEN) or reCAPTCHA site key (VITE_RECAPTCHA_SITE_KEY) is provided.'
+    );
+    return;
+  }
+
+  if (debugToken) {
+    (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+  }
+
+  // In debug mode the provider isn't consulted; the placeholder key is unused.
+  const provider = new ReCaptchaV3Provider(recaptchaSiteKey || 'unused-in-debug-mode');
+  initializeAppCheck(app, {
+    provider,
+    isTokenAutoRefreshEnabled: true
+  });
+}
+
+/**
  * Returns the Firebase AI Logic instance backed by the Gemini Developer API.
- * Note: AI Logic must be provisioned via `npx firebase init ailogic`
- * (or the Firebase console: AI Services > AI Logic) before calls succeed.
+ * Requires AI Logic to be provisioned (`firebase ailogic:providers:enable
+ * gemini-developer-api`) and App Check to be satisfied.
  */
 export function getAIService(): AI {
+  initAppCheck();
   if (!aiInstance) {
     aiInstance = getAI(getFirebaseApp(), { backend: new GoogleAIBackend() });
   }

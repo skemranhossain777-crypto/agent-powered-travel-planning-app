@@ -50,6 +50,11 @@ node_modules/
 # Build output
 dist/
 
+# Local environment variables (App Check debug token, secrets)
+.env
+.env.*
+!.env.example
+
 # Optional npm cache directory
 .npm
 
