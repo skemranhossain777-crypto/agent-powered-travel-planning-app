@@ -1,0 +1,105 @@
+mutation CreateCategory @auth(level: USER) {
+  category_insert(data: { name: "Restaurants", iconUrl: "https://example.com/icon.png", description: "Dining spots" })
+}
+
+mutation UpdateCategory($id: UUID!, $description: String) @auth(level: USER) {
+  category_update(id: $id, data: { description: $description })
+}
+
+mutation DeleteCategory($id: UUID!) @auth(level: USER) {
+  category_delete(id: $id)
+}
+
+query GetCategory($id: UUID!) @auth(level: PUBLIC, insecureReason: "Publicly readable category list") {
+  category(id: $id) { name iconUrl description }
+}
+
+query ListCategories @auth(level: PUBLIC, insecureReason: "Publicly readable category list") {
+  categories { name description }
+}
+
+mutation CreatePlace @auth(level: USER) {
+  place_insert(data: { 
+    name: "Best Pizza", 
+    category: { id: "00000000-0000-0000-0000-000000000000" }, 
+    location: [40.71, -74.00] 
+  })
+}
+
+mutation UpdatePlace($id: UUID!, $websiteUrl: String) @auth(level: USER) {
+  place_update(id: $id, data: { websiteUrl: $websiteUrl })
+}
+
+mutation DeletePlace($id: UUID!) @auth(level: USER) {
+  place_delete(id: $id)
+}
+
+query GetPlace($id: UUID!) @auth(level: PUBLIC, insecureReason: "Publicly readable place data") {
+  place(id: $id) { name averageRating websiteUrl }
+}
+
+query ListPlaces @auth(level: PUBLIC, insecureReason: "Publicly readable place data") {
+  places { name averageRating }
+}
+
+mutation CreateReview($placeId: UUID!, $rating: Int!, $comment: String!) @auth(level: USER) {
+  review_insert(data: {
+    place: { id: $placeId },
+    user: { id_expr: "auth.uid" },
+    rating: $rating,
+    comment: $comment,
+    createdAt_expr: "request.time"
+  })
+}
+
+mutation UpdateReview($id: UUID!, $rating: Int, $comment: String) @auth(level: USER) {
+  review_update(id: $id, data: { rating: $rating, comment: $comment })
+}
+
+mutation DeleteReview($id: UUID!) @auth(level: USER) {
+  review_delete(id: $id)
+}
+
+query GetReview($id: UUID!) @auth(level: PUBLIC, insecureReason: "Publicly readable reviews") {
+  review(id: $id) { rating comment createdAt }
+}
+
+query ListReviews @auth(level: PUBLIC, insecureReason: "Publicly readable reviews") {
+  reviews { rating comment }
+}
+
+mutation CreateBookmark($placeId: UUID!) @auth(level: USER) {
+  bookmark_insert(data: {
+    place: { id: $placeId },
+    user: { id_expr: "auth.uid" },
+    createdAt_expr: "request.time"
+  })
+}
+
+mutation DeleteBookmark($id: UUID!) @auth(level: USER) {
+  bookmark_delete(id: $id)
+}
+
+query ListMyBookmarks @auth(level: USER) {
+  bookmarks(where: { userId: { eq_expr: "auth.uid" } }) {
+    place { name }
+    createdAt
+  }
+}
+
+mutation CreateUser @auth(level: USER) {
+  user_insert(data: {
+    id_expr: "auth.uid",
+    username: "new_user",
+    email: "user@example.com",
+    joinDate_expr: "request.time"
+  })
+}
+
+mutation UpdateUser($username: String) @auth(level: USER) {
+  user_update(key: { id_expr: "auth.uid" }, data: { username: $username })
+}
+
+query GetProfile @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) { username email joinDate }
+}

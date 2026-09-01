@@ -1,0 +1,34 @@
+type User @table {
+  username: String!
+  email: String!
+  joinDate: Timestamp
+}
+
+type Category @table {
+  name: String!
+  iconUrl: String!
+  description: String
+}
+
+type Place @table {
+  name: String!
+  category: Category!
+  location: Vector @col(size: 2)
+  description: String
+  websiteUrl: String
+  averageRating: Float
+}
+
+type Review @table {
+  rating: Int!
+  comment: String!
+  createdAt: Timestamp!
+  place: Place!
+  user: User!
+}
+
+type Bookmark @table {
+  createdAt: Timestamp!
+  user: User!
+  place: Place!
+}
