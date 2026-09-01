@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Sparkles, X, Calendar, DollarSign, Users, Heart, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
-import { AiPlannerParams, Itinerary } from '../types/travel';
+import { Sparkles, X, Calendar, DollarSign, Users, Heart, ArrowRight, Loader2, CheckCircle2, MapPin, Navigation } from 'lucide-react';
+import { AiPlannerParams, Itinerary, UserLocation } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
+import { getCurrentLocation } from '../services/geolocation';
 
 interface AiPlannerModalProps {
   isOpen: boolean;
@@ -14,11 +15,14 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
   onClose,
   onItineraryGenerated
 }) => {
-  const [destination, setDestination] = useState('Kyoto');
+  const [destination, setDestination] = useState('');
   const [durationDays, setDurationDays] = useState(3);
   const [budgetLevel, setBudgetLevel] = useState<'Budget' | 'Moderate' | 'Luxury'>('Moderate');
   const [travelStyle, setTravelStyle] = useState<'Solo' | 'Couples' | 'Family' | 'Friends' | 'Backpacker'>('Couples');
   const [selectedInterests, setSelectedInterests] = useState<string[]>(['Culture & Heritage', 'Gourmet Dining']);
+  const [notes, setNotes] = useState('');
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -43,10 +47,24 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
     );
   };
 
+  const handleUseMyLocation = async () => {
+    if (isLocating) return;
+    setIsLocating(true);
+    setErrorMsg('');
+    const loc = await getCurrentLocation();
+    if (loc) {
+      setUserLocation(loc);
+    } else {
+      setErrorMsg('Could not access your location. Check your browser permission and try again.');
+    }
+    setIsLocating(false);
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!destination.trim()) {
-      setErrorMsg('Please enter a destination city or region.');
+    const dest = destination.trim();
+    if (!dest && !userLocation) {
+      setErrorMsg('Enter a destination city/region or tap "Use my location" so the AI knows where to plan from.');
       return;
     }
     setErrorMsg('');
@@ -54,18 +72,20 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
 
     try {
       const params: AiPlannerParams = {
-        destination: destination.trim(),
+        destination: dest,
         durationDays,
         budgetLevel,
         travelStyle,
-        interests: selectedInterests
+        interests: selectedInterests,
+        location: userLocation || undefined,
+        notes: notes.trim() || undefined
       };
       const itinerary = await aiAgent.generateItinerary(params);
       onItineraryGenerated(itinerary);
       onClose();
     } catch (err) {
       console.error(err);
-      setErrorMsg('Failed to generate itinerary. Please try again.');
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to generate itinerary. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -108,15 +128,79 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">
               Destination City or Region
+              <span style={{ fontWeight: 500, color: '#64748b', fontSize: '0.72rem', marginLeft: '0.5rem' }}>
+                (leave blank to let the AI choose from your location & interests)
+              </span>
             </label>
             <input
               type="text"
-              required
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="e.g. Kyoto, Rome, Paris, Tokyo, Bali..."
               className="form-input"
             />
+          </div>
+
+          {/* Current Location */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <MapPin className="w-4 h-4 text-orange-400" />
+              Start From My Location
+            </label>
+            {userLocation ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  padding: '0.65rem 1rem',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(0, 242, 254, 0.4)',
+                  background: 'rgba(0, 242, 254, 0.1)',
+                  color: '#00f2fe',
+                  fontSize: '0.8rem',
+                  fontWeight: 600
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Navigation className="w-4 h-4" />
+                  {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setUserLocation(null)}
+                  className="btn-icon"
+                  style={{ width: '26px', height: '26px' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={isLocating}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem',
+                  borderRadius: '12px',
+                  border: '1px dashed rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.04)',
+                  color: '#cbd5e1',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  width: '100%'
+                }}
+              >
+                {isLocating ? <Loader2 className="w-4 h-4 animate-spin text-orange-400" /> : <Navigation className="w-4 h-4 text-orange-400" />}
+                {isLocating ? 'Detecting your location…' : 'Use my current location'}
+              </button>
+            )}
           </div>
 
           {/* Duration (Days) */}
@@ -246,6 +330,22 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Intention / Extra Requirements */}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              Tell the AI your intention (optional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Anniversary trip, avoid tourist crowds, want ocean views, must try local street food, prefer walking over taxis…"
+              className="form-input"
+              rows={3}
+              style={{ resize: 'vertical', fontFamily: 'inherit' }}
+            />
           </div>
 
           {/* Generate Submit Button */}

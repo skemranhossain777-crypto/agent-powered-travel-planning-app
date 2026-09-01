@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage } from '../types/travel';
+import { ChatMessage, UserLocation } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
-import { X, Sparkles, Send, Loader2 } from 'lucide-react';
+import { getCurrentLocation, describeLocation } from '../services/geolocation';
+import { X, Sparkles, Send, Loader2, MapPin } from 'lucide-react';
 
 interface AiChatDrawerProps {
   isOpen: boolean;
@@ -9,13 +10,18 @@ interface AiChatDrawerProps {
 }
 
 export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) => {
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-welcome',
       sender: 'assistant',
-      text: '👋 Hello! I am your **AI Travel Concierge**. Ask me anything about destination tips, optimal flight seasons, packing guides, or Tokyo/Kyoto dining recommendations!',
+      text: '👋 Hello! I am your **AI Travel Concierge**. Ask me about any destination, or let me build a trip around your current location and interests.',
       timestamp: 'Just now',
-      suggestions: ['Best 3-day Kyoto itinerary', 'Tell me about Tokyo restaurants', 'What to pack for Europe?']
+      suggestions: [
+        'Suggest a weekend getaway from my area',
+        'What are unmissable things near me?',
+        'Plan a 3-day trip from where I am'
+      ]
     }
   ]);
   const [inputPrompt, setInputPrompt] = useState('');
@@ -26,8 +32,28 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      getCurrentLocation().then((loc) => {
+        if (loc && !userLocation) {
+          setUserLocation(loc);
+          const label = describeLocation(loc);
+          setMessages((prev) => [
+            {
+              id: 'msg-welcome',
+              sender: 'assistant',
+              text: `👋 Hello! I can see you're around **${label}**. Ask me about any destination, get local recommendations near you, or plan a trip from here.`,
+              timestamp: 'Just now',
+              suggestions: [
+                'Best day trips from my location',
+                'Top hidden gems near me',
+                'Plan a trip from my area with these interests'
+              ]
+            },
+            ...prev.filter((m) => m.id !== 'msg-welcome')
+          ]);
+        }
+      });
     }
-  }, [messages, isOpen]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -54,10 +80,17 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
           role: m.sender === 'user' ? 'user' as const : 'model' as const,
           text: m.text
         }));
-      const assistantMsg = await aiAgent.processChatMessage(prompt, history);
+      const assistantMsg = await aiAgent.processChatMessage(prompt, history, userLocation);
       setMessages(prev => [...prev, assistantMsg]);
     } catch (err) {
       console.error(err);
+      const errorMsg: ChatMessage = {
+        id: `msg-error-${Date.now()}`,
+        sender: 'assistant',
+        text: err instanceof Error ? err.message : 'The concierge couldn’t respond right now. Please try again.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsTyping(false);
     }
@@ -77,7 +110,14 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
               <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', margin: 0 }}>AI Travel Concierge</h3>
               <p style={{ fontSize: '0.7rem', color: '#00f2fe', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                Online & Ready
+                {userLocation ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <MapPin className="w-3 h-3" />
+                    Grounded on: {userLocation.latitude.toFixed(3)}, {userLocation.longitude.toFixed(3)}
+                  </span>
+                ) : (
+                  'Online & Ready'
+                )}
               </p>
             </div>
           </div>

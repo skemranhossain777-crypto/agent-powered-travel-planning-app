@@ -84,12 +84,22 @@ export interface Itinerary {
   saved?: boolean;
 }
 
+export interface UserLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  label?: string;
+  timestamp: number;
+}
+
 export interface AiPlannerParams {
   destination: string;
   durationDays: number;
   budgetLevel: 'Budget' | 'Moderate' | 'Luxury';
   travelStyle: 'Solo' | 'Couples' | 'Family' | 'Friends' | 'Backpacker';
   interests: string[];
+  location?: UserLocation;
+  notes?: string;
 }
 
 export interface ChatMessage {
