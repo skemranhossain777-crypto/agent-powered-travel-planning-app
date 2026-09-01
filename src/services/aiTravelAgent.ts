@@ -10,24 +10,25 @@ import {
 import { describeLocation } from './geolocation';
 
 /**
- * The current stable Gemini model for text/structured output on the
- * Gemini Developer API (no billing required). See
- * https://firebase.google.com/docs/ai-logic/models for the latest list.
+ * Gemini text model aliases to try in order. gemini-3.6-flash is the current
+ * stable flash model on the Gemini Developer API (no billing required) — the
+ * platform itself recommends migrating to it. The others are kept as automatic
+ * fallbacks for transient "high demand" / quota / retired-model errors.
+ * See https://firebase.google.com/docs/ai-logic/models for the latest list.
  */
-const TEXT_MODEL = 'gemini-3.7-flash';
+const TEXT_MODEL_ALIASES = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'];
 
-let plannerModel: GenerativeModel | null = null;
-let conciergeModel: GenerativeModel | null = null;
-let conciergeContextKey: string | null = null;
+const plannerModels: Record<string, GenerativeModel> = {};
+const conciergeModels: Record<string, GenerativeModel> = {};
 
 /**
  * Lazily builds models. getGenerativeModel itself does not hit the network.
  */
-function getPlannerModel(): GenerativeModel {
-  if (!plannerModel) {
+function getPlannerModel(alias: string): GenerativeModel {
+  if (!plannerModels[alias]) {
     const ai = getAIService();
-    plannerModel = getGenerativeModel(ai, {
-      model: TEXT_MODEL,
+    plannerModels[alias] = getGenerativeModel(ai, {
+      model: alias,
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
@@ -38,7 +39,7 @@ function getPlannerModel(): GenerativeModel {
       }
     });
   }
-  return plannerModel;
+  return plannerModels[alias];
 }
 
 function conciergeLocationContext(location: UserLocation | null): string {
@@ -51,12 +52,12 @@ function conciergeLocationContext(location: UserLocation | null): string {
   return `The user's current location is ${describeLocation(location)}. Treat this as their origin and home base. Use it to ground local recommendations, day trips, and "near me" answers, and to estimate transit/flights from home. If the coordinates cannot be mapped to a recognizable place, say so and work from the coordinates as a general origin.`;
 }
 
-function getConciergeModel(location: UserLocation | null): GenerativeModel {
-  const contextKey = location ? JSON.stringify(location) : 'none';
-  if (!conciergeModel || conciergeContextKey !== contextKey) {
+function getConciergeModel(location: UserLocation | null, alias: string): GenerativeModel {
+  const key = `${alias}|${location ? JSON.stringify(location) : 'none'}`;
+  if (!conciergeModels[key]) {
     const ai = getAIService();
-    conciergeModel = getGenerativeModel(ai, {
-      model: TEXT_MODEL,
+    conciergeModels[key] = getGenerativeModel(ai, {
+      model: alias,
       generationConfig: {
         temperature: 0.7,
         topP: 0.95,
@@ -71,9 +72,8 @@ function getConciergeModel(location: UserLocation | null): GenerativeModel {
         conciergeLocationContext(location)
       ].join('\n')
     });
-    conciergeContextKey = contextKey;
   }
-  return conciergeModel;
+  return conciergeModels[key];
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +234,39 @@ function buildItineraryPrompt(params: AiPlannerParams): string {
 // Public API — fully generative. No hardcoded fallback content.
 // ---------------------------------------------------------------------------
 
+function isRetriableModelError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    /quota|rate limit|resource exhausted|high demand|busy|too many|no longer available|not found|429|500|503/.test(m)
+  );
+}
+
+/**
+ * Runs `invoke` against a freshly built model for each alias in
+ * TEXT_MODEL_ALIASES until one succeeds. Transient errors (high demand,
+ * free-tier quota, retired-model 404s) cause a retry on the next alias.
+ */
+async function runWithModelFallback(
+  build: (alias: string) => GenerativeModel,
+  invoke: (model: GenerativeModel) => Promise<string>
+): Promise<string> {
+  let lastError: unknown = null;
+  for (const alias of TEXT_MODEL_ALIASES) {
+    try {
+      return await invoke(build(alias));
+    } catch (err) {
+      lastError = err;
+      const detail = err instanceof Error ? err.message : String(err);
+      if (!isRetriableModelError(detail)) {
+        throw err;
+      }
+      console.warn(`[AiTravelAgent] model ${alias} unavailable (${detail.slice(0, 140)}); trying fallback alias.`);
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 export class AiTravelAgentService {
   /**
    * Generates a fully generative travel itinerary from Gemini using the user's
@@ -243,9 +276,10 @@ export class AiTravelAgentService {
    */
   async generateItinerary(params: AiPlannerParams): Promise<Itinerary> {
     try {
-      const model = getPlannerModel();
-      const result = await model.generateContent(buildItineraryPrompt(params));
-      const text = result.response.text();
+      const text = await runWithModelFallback(
+        (alias) => getPlannerModel(alias),
+        async (model) => (await model.generateContent(buildItineraryPrompt(params))).response.text()
+      );
       const raw = JSON.parse(text) as RawItinerary;
       const itinerary = buildItinerary(raw, params);
       if (!itinerary.dayPlans.length) {
@@ -257,8 +291,8 @@ export class AiTravelAgentService {
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
         `AI planner couldn't create a real itinerary right now. ${detail} ` +
-          `If this is the first run, make sure Firebase AI Logic is provisioned (` +
-          `run "npx firebase init ailogic" or enable AI Logic for the Gemini Developer API in the Firebase console) and retry.`
+          `This is usually temporary — the Gemini model may be busy (high demand) or the ` +
+          `free-tier request limit for the day may be exhausted. Wait a moment and retry.`
       );
     }
   }
@@ -274,15 +308,18 @@ export class AiTravelAgentService {
     location?: UserLocation | null
   ): Promise<ChatMessage> {
     try {
-      const model = getConciergeModel(location || null);
-      const chat = model.startChat({
-        history: (history || []).slice(-20).map((m) => ({
-          role: m.role,
-          parts: [{ text: m.text }]
-        }))
-      });
-      const result = await chat.sendMessage(userPrompt);
-      const text = result.response.text();
+      const text = await runWithModelFallback(
+        (alias) => getConciergeModel(location || null, alias),
+        async (model) => {
+          const chat = model.startChat({
+            history: (history || []).slice(-20).map((m) => ({
+              role: m.role,
+              parts: [{ text: m.text }]
+            }))
+          });
+          return (await chat.sendMessage(userPrompt)).response.text();
+        }
+      );
       return {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
@@ -294,8 +331,8 @@ export class AiTravelAgentService {
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
         `The concierge couldn't respond right now. ${detail} ` +
-          `If this is the first run, make sure Firebase AI Logic is provisioned (` +
-          `run "npx firebase init ailogic" or enable AI Logic for the Gemini Developer API in the Firebase console) and retry.`
+          `This is usually temporary — the Gemini model may be busy (high demand) or the ` +
+          `free-tier request limit for the day may be exhausted. Wait a moment and retry.`
       );
     }
   }
