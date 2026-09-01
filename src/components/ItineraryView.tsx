@@ -54,7 +54,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
       {/* Header Banner */}
       <div style={{ padding: '2rem', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(112,0,255,0.2), rgba(0,242,254,0.1), rgba(15,23,42,0.9))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: '2rem' }}>
         
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justify: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
           <div>
             <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid rgba(0, 242, 254, 0.4)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.75rem' }}>
               <Sparkles className="w-3.5 h-3.5" />

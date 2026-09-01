@@ -25,7 +25,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     <div className="section-container animate-fade-in">
       
       {/* Sub-navigation selector */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', margin: 0 }}>Your Saved Collection</h1>
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Access bookmarked locations and custom AI travel plans</p>

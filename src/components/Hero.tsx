@@ -43,7 +43,7 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, onOpenAiPlanner }) => {
         {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="search-form">
           <div className="search-input-wrapper">
-            <Search className="w-5 h-5 text-cyan-400" style={{ marginRight: '0.5rem', shrink: 0 }} />
+            <Search className="w-5 h-5 text-cyan-400" style={{ marginRight: '0.5rem', flexShrink: 0 }} />
             <input
               type="text"
               value={query}
@@ -54,7 +54,7 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, onOpenAiPlanner }) => {
             <button
               type="submit"
               className="btn-primary"
-              style={{ padding: '0.65rem 1.4rem', fontSize: '0.85rem', shrink: 0 }}
+              style={{ padding: '0.65rem 1.4rem', fontSize: '0.85rem', flexShrink: 0 }}
             >
               Explore
             </button>

@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>Voyage</span>
               <span style={{ fontSize: '1.25rem', fontWeight: 800 }} className="gradient-text">AI</span>
             </div>
-            <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', tracking: '0.1em', color: '#94a3b8', fontWeight: 700, margin: 0 }}>
+            <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', fontWeight: 700, margin: 0 }}>
               Agent-Powered Travel
             </p>
           </div>

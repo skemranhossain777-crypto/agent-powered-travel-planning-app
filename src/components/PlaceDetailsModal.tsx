@@ -132,7 +132,7 @@ export const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
             <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', marginBottom: '0.5rem' }}>
               About this destination
             </h3>
-            <p style={{ color: '#e2e8f0', fontSize: '0.9rem', leading: 1.6 }}>
+            <p style={{ color: '#e2e8f0', fontSize: '0.9rem', lineHeight: 1.6 }}>
               {place.description}
             </p>
           </div>
@@ -182,7 +182,7 @@ export const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
                     key={rev.id}
                     style={{ padding: '0.85rem 1rem', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
-                    <div style={{ display: 'flex', items: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <img
                           src={rev.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'}

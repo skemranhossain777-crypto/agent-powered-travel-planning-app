@@ -47,7 +47,14 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
     setIsTyping(true);
 
     try {
-      const assistantMsg = await aiAgent.processChatMessage(prompt);
+      const history = messages
+        .filter(m => m.sender !== 'assistant' || m.id !== 'msg-welcome')
+        .slice(-14)
+        .map(m => ({
+          role: m.sender === 'user' ? 'user' as const : 'model' as const,
+          text: m.text
+        }));
+      const assistantMsg = await aiAgent.processChatMessage(prompt, history);
       setMessages(prev => [...prev, assistantMsg]);
     } catch (err) {
       console.error(err);
