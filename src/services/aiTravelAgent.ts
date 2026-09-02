@@ -479,13 +479,13 @@ async function runWithModelFallback(
 }
 
 function buildDiscoverPrompt(query: string, location: UserLocation | null, count: number): string {
-  const originHint = location
-    ? `The traveler is currently near ${describeLocation(location)}; when sensible, prefer places that are easy for a traveler starting from there to visit.`
+  const scope = location
+    ? `The traveler is currently near ${describeLocation(location)}. REQUIRE every place you return to be a real, existing place located NEAR this location — in the same city or its immediate surroundings. Do NOT list places that are far away (no other countries, no famous-but-unrelated landmarks elsewhere) unless the search explicitly names that distant place.`
     : 'The traveler has not shared their location; choose places from anywhere in the world that best match the request.';
   return [
-    'You are a worldwide travel-discovery agent.',
-    `Find ${count} real, specific, notable places around the world that best match this search: "${query}".`,
-    originHint,
+    'You are a location-aware travel-discovery agent.',
+    `Find ${count} real, specific, notable places that best match this search: "${query}".`,
+    scope,
     'Only include real, well-known places with confident details — famous landmarks, acclaimed restaurants, iconic hotels, distinctive neighborhoods, natural wonders, markets, and nightlife spots.',
     "Each place needs: exact name; city; country; a vivid 1-2 sentence description; 3-4 short tags; a realistic average rating between 3.8 and 5.0; a plausible review count; a price level that is exactly one of $, $$, $$$, $$$$; an approximate latitude/longitude; and a website URL if you know one.",
     "imageUrl: provide the direct address of a real photo of this exact place hosted on Wikipedia/Wikimedia Commons (upload.wikimedia.org) ONLY if you are genuinely confident it is that place's own photo. Otherwise leave imageUrl empty — it will be matched automatically.",

@@ -144,36 +144,37 @@ export function App() {
     }
   };
 
-  // AI discovery query + heading per category tab (used when browsing a
-  // category with no keyword so the tabs feel dynamic, not just local seed).
+  // AI discovery query + heading per category tab. The model is told the user's
+// real location via `discoverPlaces`, so these queries demand real, local
+// places near them — never generic worldwide filler.
   const CATEGORY_DISCOVER: Record<string, { query: string; heading: string }> = {
-    'cat-rest': { query: 'highly rated restaurants and famous dining spots worldwide', heading: 'Restaurants & Dining' },
-    'cat-hist': { query: 'iconic historical sites and landmarks worldwide', heading: 'Historical Sites' },
-    'cat-out': { query: 'incredible outdoor and nature destinations worldwide', heading: 'Outdoor & Nature' },
-    'cat-night': { query: 'best nightlife, bars and entertaining venues worldwide', heading: 'Nightlife & Bars' },
-    'cat-shop': { query: 'famous shopping areas, malls and bazaars worldwide', heading: 'Shopping & Bazaars' },
-    'cat-hotel': { query: 'top rated hotels and resorts worldwide', heading: 'Hotels & Resorts' }
+    'cat-rest': { query: 'real restaurants and dining spots actually near the traveler\'s location', heading: 'Restaurants & Dining' },
+    'cat-hist': { query: 'real historical sites and landmarks actually near the traveler\'s location', heading: 'Historical Sites' },
+    'cat-out': { query: 'real parks, nature and outdoor spots actually near the traveler\'s location', heading: 'Outdoor & Nature' },
+    'cat-night': { query: 'real bars, nightlife and entertainment venues actually near the traveler\'s location', heading: 'Nightlife & Bars' },
+    'cat-shop': { query: 'real shopping areas, malls and markets actually near the traveler\'s location', heading: 'Shopping & Bazaars' },
+    'cat-hotel': { query: 'real hotels and resorts actually near the traveler\'s location', heading: 'Hotels & Resorts' }
   };
 
   const discoverByCategory = async (catId: string, catName: string, loc: UserLocation | null) => {
-    const spec = CATEGORY_DISCOVER[catId] || { query: `top ${catName} places worldwide`, heading: catName };
-    const locationHint = loc && loc.label ? ` near ${loc.label}` : '';
+    const spec = CATEGORY_DISCOVER[catId] || { query: `top ${catName} places`, heading: catName };
     setIsExploring(true);
     try {
       const result = await Promise.race([
-        aiAgent.discoverPlaces(spec.query + locationHint, loc, 8, currentUser),
+        aiAgent.discoverPlaces(spec.query, loc, 8, currentUser),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
       ]);
       if (!result.length) throw new Error('AI returned no places');
+      await enrichPlacesWithImages(result);
       setPlaces(result);
       setExploreHeading(spec.heading);
     } catch (err) {
-      console.error('[App] category AI discovery failed:', err);
+      console.error('[App] category discovery failed:', err);
       const local = await dataConnect.getPlaces(catId, '');
       await enrichPlacesWithImages(local);
       setPlaces(local);
       setExploreHeading(spec.heading);
-      addToast('info', `AI discovery unavailable — showing saved ${catName} places instead.`);
+      addToast('info', `Couldn't reach live travel data — showing saved ${catName} places instead.`);
     } finally {
       setIsExploring(false);
     }
@@ -184,15 +185,14 @@ export function App() {
     const local = await dataConnect.getPlaces(catId, trimmed);
     await enrichPlacesWithImages(local);
 
-    // No keyword: when browsing a specific category, run dynamic AI discovery
-    // for that category instead of silently showing the local seed.
+    // No keyword: when browsing a specific category, run dynamic discovery
+    // for that category (Google Places → AI → saved seed), scoped to the user's
+    // real location when they allow it — logged in or not.
     if (!trimmed && catId !== 'all') {
       const catName = categories.find((c) => c.id === catId)?.name ?? catId;
       let loc: UserLocation | null = null;
-      if (currentUser) {
-        const rawLoc = await getCurrentLocation();
-        if (rawLoc) loc = await reverseGeocode(rawLoc);
-      }
+      const rawLoc = await getCurrentLocation().catch(() => null);
+      if (rawLoc) loc = await reverseGeocode(rawLoc).catch(() => null);
       await discoverByCategory(catId, catName, loc);
       return;
     }
