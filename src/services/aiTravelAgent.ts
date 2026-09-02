@@ -10,7 +10,7 @@ import {
   Category,
   User
 } from '../types/travel';
-import { describeLocation } from './geolocation';
+import { describeLocation, getCurrencyCode, currencySymbol } from './geolocation';
 import { dataConnect } from './dataConnectService';
 import { enrichPlacesWithImages } from './placeImages';
 
@@ -55,7 +55,9 @@ function conciergeLocationContext(location: UserLocation | null): string {
       'Never assume a city or "near me" location. If they ask for anything local ("near me", "from here", "my city"), ask which city they are in or invite them to enable location sharing.'
     ].join(' ');
   }
-  return `The user's current location is ${describeLocation(location)}. Treat this as their origin and home base. Use it to ground local recommendations, day trips, and "near me" answers, and to estimate transit/flights from home. If the coordinates cannot be mapped to a recognizable place, say so and work from the coordinates as a general origin.`;
+  const cur = getCurrencyCode(location.countryCode);
+  const curSym = currencySymbol(cur);
+  return `The user's current location is ${describeLocation(location)}. Treat this as their origin and home base. Use it to ground local recommendations, day trips, and "near me" answers, and to estimate transit/flights from home. If the coordinates cannot be mapped to a recognizable place, say so and work from the coordinates as a general origin. Quote ALL prices in the user's local currency ${cur} (${curSym}) — never USD.`;
 }
 
 /**
@@ -401,9 +403,13 @@ function destinationSpec(params: AiPlannerParams): string {
 }
 
 function buildItineraryPrompt(params: AiPlannerParams, user?: User | null): string {
+  const cur = getCurrencyCode(params.location?.countryCode);
+  const curSym = currencySymbol(cur);
+  const curLine = `Currency: show ALL prices in the traveler's local currency ${cur} (${curSym}) — not USD.`;
   const lines: string[] = [
     'You are a travel-planning agent. Create a realistic, specific, day-by-day itinerary. Never use generic placeholder phrasing.',
     '',
+    curLine,
     `Destination: ${params.destination && params.destination.trim() ? params.destination.trim() : '(not specified — pick it from context)'}`,
     `Duration: ${params.durationDays} day(s)`,
     `Budget level: ${params.budgetLevel}`,
@@ -420,16 +426,16 @@ function buildItineraryPrompt(params: AiPlannerParams, user?: User | null): stri
     '',
     destinationSpec(params),
     '',
-    'Make every activity concrete and authentic: real neighborhoods, real landmark names, real local cuisine, and realistic prices in USD.',
+    'Make every activity concrete and authentic: real neighborhoods, real landmark names, real local cuisine, and realistic prices in the traveler\'s local currency.',
     'Research-aware guidance: mention obvious practical considerations (e.g., cluster activities by area, avoid unrealistic transit hops, suggest the best transport between zones).',
     '',
-    'Include transport and stay every time, with realistic prices:',
-    '- `transport`: ALL realistic ways to get from the traveler\'s home base to the destination and around — e.g. flight (with a realistic one-way price), train, bus, rental car, and local metro/taxi within the destination. Give each option\'s `mode`, `route` (e.g. "Dhaka → Bali", "local metro within inner city"), and `estimatedCost` in USD.',
-    '- `hotels`: 2–3 specific, realistic accommodation options matched to the traveler\'s budget level, with `name`, `area`/neighborhood, `ratePerNight` (USD per night), and `estimatedCost` (USD total for the stay).',
-    '- `sightseeingCost`: a realistic per-destination estimate (USD) of entry fees / sightseeing for the whole trip.',
+    'Include transport and stay every time, with realistic prices in the traveler\'s local currency:',
+    `- \`transport\`: ALL realistic ways to get from the traveler's home base to the destination and around — e.g. flight (with a realistic one-way price), train, bus, rental car, and local metro/taxi within the destination. Give each option's \`mode\`, \`route\` (e.g. "Dhaka → Bali", "local metro within inner city"), and \`estimatedCost\` in ${cur} (${curSym}).`,
+    `- \`hotels\`: 2–3 specific, realistic accommodation options matched to the traveler's budget level, with \`name\`, \`area\`/neighborhood, \`ratePerNight\` (${cur} per night), and \`estimatedCost\` (${cur} total for the stay).`,
+    `- \`sightseeingCost\`: a realistic per-destination estimate (${cur}) of entry fees / sightseeing for the whole trip.`,
     'Base every choice on this specific traveler\'s profile above (name, home city, interests, travel style, budget) and call them out where it matters — never answer as a generic anonymous plan.',
     `Return exactly ${params.durationDays} day plan(s).`,
-    'Use `bestTimeToVisit` for the ideal months for that destination, and `estimatedTotalCost` as a realistic overall spend in USD.',
+    `Use \`bestTimeToVisit\` for the ideal months for that destination, and \`estimatedTotalCost\` as a realistic overall spend in ${cur} (${curSym}).`,
     'Return only valid JSON matching the requested schema.'
   );
   return lines.join('\n');

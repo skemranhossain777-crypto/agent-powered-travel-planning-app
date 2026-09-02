@@ -161,6 +161,7 @@ export interface UserLocation {
   longitude: number;
   accuracy?: number;
   label?: string;
+  countryCode?: string;
   timestamp: number;
 }
 

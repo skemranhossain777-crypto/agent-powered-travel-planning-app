@@ -53,11 +53,42 @@ export async function reverseGeocode(location: UserLocation): Promise<UserLocati
     if (!res.ok) return location;
     const data = await res.json();
     const label = formatPlaceName(data.address);
-    if (!label) return location;
-    return { ...location, label };
+    if (!label && !data.address?.country_code) return location;
+    const countryCode = (data.address?.country_code || '').toUpperCase();
+    return { ...location, label: label || undefined, countryCode: countryCode || undefined };
   } catch {
     return location;
   }
+}
+
+const COUNTRY_CURRENCY: Record<string, string> = {
+  US: 'USD', CA: 'CAD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', EU: 'EUR', DE: 'EUR',
+  FR: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', AT: 'EUR', PT: 'EUR', IE: 'EUR',
+  FI: 'EUR', GR: 'EUR', LU: 'EUR', SK: 'EUR', SI: 'EUR', EE: 'EUR', LV: 'EUR', LT: 'EUR',
+  CY: 'EUR', MT: 'EUR', HR: 'EUR', CH: 'CHF', JP: 'JPY', CN: 'CNY', HK: 'HKD', KR: 'KRW',
+  IN: 'INR', PK: 'PKR', BD: 'BDT', LK: 'LKR', NP: 'NPR', MV: 'MVR', BT: 'BTN', AF: 'AFN',
+  ID: 'IDR', MY: 'MYR', SG: 'SGD', TH: 'THB', VN: 'VND', PH: 'PHP', MM: 'MMK', KH: 'KHR',
+  LA: 'LAK', BN: 'BND', TL: 'USD', AE: 'AED', SA: 'SAR', QA: 'QAR', KW: 'KWD', BH: 'BHD',
+  OM: 'OMR', JO: 'JOD', LB: 'LBP', IL: 'ILS', TR: 'TRY', EG: 'EGP', NG: 'NGN', ZA: 'ZAR',
+  KE: 'KES', GH: 'GHS', TZ: 'TZS', ET: 'ETB', MA: 'MAD', DZ: 'DZD', TN: 'TND', CM: 'XAF',
+  BR: 'BRL', MX: 'MXN', AR: 'ARS', CL: 'CLP', CO: 'COP', PE: 'PEN', VE: 'VES', UY: 'UYU',
+  RU: 'RUB', UA: 'UAH', PL: 'PLN', CZ: 'CZK', HU: 'HUF', RO: 'RON', BG: 'BGN', SE: 'SEK',
+  NO: 'NOK', DK: 'DKK', IS: 'ISK'
+};
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩', INR: '₹', PKR: '₨',
+  BDT: '৳', THB: '฿', VND: '₫', BRL: 'R$', MXN: '$', AED: 'د.إ', ILS: '₪', TRY: '₺',
+  PLN: 'zł', SEK: 'kr', NOK: 'kr', DKK: 'kr', CHF: 'Fr', CAD: 'C$', AUD: 'A$', NZD: 'NZ$'
+};
+
+export function getCurrencyCode(countryCode?: string): string {
+  if (countryCode && COUNTRY_CURRENCY[countryCode]) return COUNTRY_CURRENCY[countryCode];
+  return 'USD';
+}
+
+export function currencySymbol(code: string): string {
+  return CURRENCY_SYMBOL[code] || code;
 }
 
 function formatPlaceName(addr?: Record<string, string>): string {
