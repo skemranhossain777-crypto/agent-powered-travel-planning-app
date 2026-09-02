@@ -17,7 +17,7 @@ import { AuthModal } from './components/AuthModal';
 import { ProfileView } from './components/ProfileView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { NotificationToast, ToastMessage } from './components/NotificationToast';
-import { Compass, Sparkles } from 'lucide-react';
+import { Compass, Sparkles, MessageCircle } from 'lucide-react';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'explore' | 'bookmarks' | 'itineraries' | 'profile'>('explore');
@@ -227,7 +227,6 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAiPlanner={() => setIsAiPlannerOpen(true)}
-        onToggleChat={() => setIsChatOpen(!isChatOpen)}
         onOpenAuth={() => setIsAuthOpen(true)}
         bookmarkCount={bookmarkedPlaces.length}
         savedItineraryCount={savedItineraries.length}
@@ -378,6 +377,18 @@ export function App() {
         onClose={() => setReviewingPlace(null)}
         onSubmitReview={handleSubmitReview}
       />
+
+      {!isChatOpen && (
+        <button
+          type="button"
+          onClick={() => setIsChatOpen(true)}
+          className="chat-launcher"
+          title="Open AI Travel Concierge"
+          aria-label="Open AI Travel Concierge"
+        >
+          <MessageCircle className="w-6 h-6" />
+        </button>
+      )}
 
       <AiChatDrawer
         isOpen={isChatOpen}

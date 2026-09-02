@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, UserLocation, User } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
-import { getCurrentLocation, describeLocation } from '../services/geolocation';
+import { getCurrentLocation, describeLocation, reverseGeocode } from '../services/geolocation';
 import { X, Sparkles, Send, MapPin, LogIn } from 'lucide-react';
 
 interface AiChatDrawerProps {
@@ -36,10 +36,11 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose, cur
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      getCurrentLocation().then((loc) => {
+      getCurrentLocation().then(async (loc) => {
         if (loc && !userLocation) {
-          setUserLocation(loc);
-          const label = describeLocation(loc);
+          const labelled = await reverseGeocode(loc);
+          setUserLocation(labelled);
+          const label = describeLocation(labelled);
           setMessages((prev) => [
             {
               id: 'msg-welcome',
@@ -121,7 +122,9 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose, cur
                 {userLocation ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                     <MapPin className="w-3 h-3" />
-                    Grounded on: {userLocation.latitude.toFixed(3)}, {userLocation.longitude.toFixed(3)}
+                    {userLocation.label
+                      ? `Grounded on: ${userLocation.label}`
+                      : `Grounded on: ${userLocation.latitude.toFixed(3)}, ${userLocation.longitude.toFixed(3)}`}
                   </span>
                 ) : (
                   'Online & Ready'

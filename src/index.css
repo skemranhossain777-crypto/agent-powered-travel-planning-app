@@ -1229,36 +1229,76 @@ button {
   .modal-dialog::before { display: none; }
 }
 
-/* Drawer */
+/* Floating AI chat launcher — bottom-right corner */
+.chat-launcher {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 89;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #00f2fe, #7000ff);
+  color: #040812;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(0, 242, 254, 0.35), 0 8px 24px rgba(112, 0, 255, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: fadeIn 0.3s ease-out;
+}
+.chat-launcher:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 16px 40px rgba(0, 242, 254, 0.45), 0 10px 30px rgba(112, 0, 255, 0.45);
+}
+.chat-launcher:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 500px) {
+  .chat-launcher {
+    right: 1rem;
+    bottom: 5.5rem; /* clear the mobile bottom tab bar */
+    width: 54px;
+    height: 54px;
+  }
+}
+
+/* Drawer — floating AI chat widget in the bottom-right corner */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgba(3, 6, 12, 0.65);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  display: flex;
-  justify-content: flex-end;
+  background: transparent;
+  pointer-events: none;
   animation: fadeIn 0.25s ease-out;
 }
 
 .drawer-panel {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  height: 100%;
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(400px, calc(100vw - 2rem));
+  height: min(560px, calc(100vh - 2rem));
   background: var(--bg-modal);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
   display: flex;
   flex-direction: column;
-  box-shadow: -14px 0 50px rgba(0, 0, 0, 0.65);
-  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (min-width: 640px) {
+@media (max-width: 500px) {
   .drawer-panel {
-    max-width: 440px;
-    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    right: 0.75rem;
+    bottom: 0.75rem;
+    width: calc(100vw - 1.5rem);
+    height: calc(100vh - 1.5rem);
   }
 }
 

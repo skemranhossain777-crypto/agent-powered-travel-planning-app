@@ -1,12 +1,11 @@
 import React from 'react';
-import { Compass, Sparkles, Bookmark, Map, MessageSquare, User as UserIcon, LogIn } from 'lucide-react';
+import { Compass, Sparkles, Bookmark, Map, User as UserIcon, LogIn } from 'lucide-react';
 import { User } from '../types/travel';
 
 interface NavbarProps {
   activeTab: 'explore' | 'bookmarks' | 'itineraries' | 'profile';
   setActiveTab: (tab: 'explore' | 'bookmarks' | 'itineraries' | 'profile') => void;
   onOpenAiPlanner: () => void;
-  onToggleChat: () => void;
   onOpenAuth: () => void;
   bookmarkCount: number;
   savedItineraryCount: number;
@@ -17,7 +16,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenAiPlanner,
-  onToggleChat,
   onOpenAuth,
   bookmarkCount,
   savedItineraryCount,
@@ -98,17 +96,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="navbar-cta-label">AI Trip Planner</span>
             </button>
 
-            <button
-              type="button"
-              onClick={onToggleChat}
-              className="btn-icon"
-              style={{ position: 'relative' }}
-              title="Open AI Concierge Chat"
-            >
-              <MessageSquare className="w-5 h-5 text-cyan-400" />
-              <span className="ai-badge-pulse" style={{ position: 'absolute', top: '3px', right: '3px', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%' }} />
-            </button>
-
             {currentUser ? (
               <button
                 type="button"
@@ -176,15 +163,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Sparkles />
           <span className="tab-label">Plan</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggleChat}
-          className="mobile-tab-btn ai"
-        >
-          <MessageSquare />
-          <span className="tab-label">Chat</span>
         </button>
 
         <button

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, X, Calendar, DollarSign, Users, Heart, ArrowRight, Loader2, CheckCircle2, MapPin, Navigation } from 'lucide-react';
 import { AiPlannerParams, Itinerary, UserLocation, User } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
-import { getCurrentLocation } from '../services/geolocation';
+import { getCurrentLocation, reverseGeocode } from '../services/geolocation';
 
 interface AiPlannerModalProps {
   isOpen: boolean;
@@ -57,7 +57,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
     setErrorMsg('');
     const loc = await getCurrentLocation();
     if (loc) {
-      setUserLocation(loc);
+      setUserLocation(await reverseGeocode(loc));
     } else {
       setErrorMsg('Could not access your location. Check your browser permission and try again.');
     }
@@ -174,7 +174,9 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Navigation className="w-4 h-4" />
-                  {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                  {userLocation.label
+                    ? userLocation.label
+                    : `${userLocation.latitude.toFixed(4)}, ${userLocation.longitude.toFixed(4)}`}
                 </span>
                 <button
                   type="button"
