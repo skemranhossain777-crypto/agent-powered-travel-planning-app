@@ -12,7 +12,7 @@ service cloud.firestore {
     // Admin allow-list. Add/remove admin emails here (must match Firebase Auth emails).
     function isAdmin() {
       return request.auth != null && request.auth.token.email in [
-        'skemranhossain777.crypto@gmail.com'
+        'skemranhossain777@gmail.com'
       ];
     }
 

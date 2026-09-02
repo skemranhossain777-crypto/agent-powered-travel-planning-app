@@ -16,7 +16,7 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     const current = authService.user;
-    setAdmin(!!current && current.email === 'skemranhossain777.crypto@gmail.com');
+    setAdmin(!!current && current.email === 'skemranhossain777@gmail.com');
   }, []);
 
   useEffect(() => {
