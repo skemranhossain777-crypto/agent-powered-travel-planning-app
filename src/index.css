@@ -583,3 +583,17 @@ h1, h2, h3, h4, h5, h6 {
 .animate-fade-in {
   animation: fadeIn 0.3s var(--transition-smooth) forwards;
 }
+
+.ai-spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 1rem;
+  border: 3px solid rgba(59, 130, 246, 0.25);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: ai-spin 0.8s linear infinite;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}

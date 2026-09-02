@@ -13,6 +13,7 @@ interface PlaceExplorerProps {
   onToggleBookmark: (placeId: string) => void;
   onSelectPlace: (place: Place) => void;
   onOpenReviewModal: (place: Place) => void;
+  isLoading?: boolean;
 }
 
 export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
@@ -25,7 +26,8 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
   bookmarkedPlaceIds,
   onToggleBookmark,
   onSelectPlace,
-  onOpenReviewModal
+  onOpenReviewModal,
+  isLoading = false
 }) => {
   const getCategoryIcon = (id: string) => {
     switch (id) {
@@ -80,12 +82,22 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
       </div>
 
       {/* Grid of Places */}
-      {places.length === 0 ? (
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
+          <div className="ai-spinner" />
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>AI is discovering places worldwide…</h3>
+          <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '420px', margin: '0 auto' }}>
+            Searching for real destinations that match your keyword across the globe.
+          </p>
+        </div>
+      ) : places.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
           <Search className="w-12 h-12 text-slate-600" style={{ margin: '0 auto 1rem' }} />
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>No Destinations Found</h3>
           <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
-            We couldn't find any places matching your current search query. Try clearing your filters.
+            {searchQuery
+              ? "We couldn't discover any places for that keyword right now. Try a broader search."
+              : "We couldn't find any places matching your current filters. Try clearing your filters."}
           </p>
           <button
             type="button"

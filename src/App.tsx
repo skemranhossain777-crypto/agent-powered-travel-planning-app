@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Place, Category, User, Itinerary } from './types/travel';
 import { dataConnect } from './services/dataConnectService';
+import { aiAgent } from './services/aiTravelAgent';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { PlaceExplorer } from './components/PlaceExplorer';
@@ -23,6 +24,7 @@ export function App() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isExploring, setIsExploring] = useState(false);
 
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [reviewingPlace, setReviewingPlace] = useState<Place | null>(null);
@@ -54,8 +56,36 @@ export function App() {
   }, []);
 
   const fetchPlaces = async (catId: string, query: string) => {
-    const list = await dataConnect.getPlaces(catId, query);
-    setPlaces(list);
+    const trimmed = (query || '').trim();
+    const local = await dataConnect.getPlaces(catId, trimmed);
+
+    // No keyword: plain local/category browsing.
+    if (!trimmed) {
+      setPlaces(local);
+      return;
+    }
+
+    // Keyword search: let the AI discover real places worldwide that match,
+    // even when nothing in the local seed data does.
+    setIsExploring(true);
+    try {
+      const aiPlaces = await aiAgent.discoverPlaces(trimmed, null);
+      if (!aiPlaces.length) {
+        setPlaces(local);
+        addToast('info', `AI couldn't find verified places for "${trimmed}". Try a broader keyword.`);
+        return;
+      }
+      const seen = new Set(local.map((p) => p.name.toLowerCase()));
+      const extras = aiPlaces.filter((p) => !seen.has(p.name.toLowerCase()));
+      setPlaces([...local, ...extras]);
+    } catch (err) {
+      console.error('[App] AI place discovery failed:', err);
+      setPlaces(local);
+      const detail = err instanceof Error ? err.message : String(err);
+      addToast('error', `${detail}${local.length ? ' Showing local matches instead.' : ''}`);
+    } finally {
+      setIsExploring(false);
+    }
   };
 
   const handleCategoryChange = (catId: string) => {
@@ -158,6 +188,7 @@ export function App() {
               onToggleBookmark={handleToggleBookmark}
               onSelectPlace={(place) => setSelectedPlace(place)}
               onOpenReviewModal={(place) => setReviewingPlace(place)}
+              isLoading={isExploring}
             />
           </>
         )}
