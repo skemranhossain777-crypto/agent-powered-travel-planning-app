@@ -79,6 +79,19 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
     setErrorMsg('');
     setIsLoading(true);
 
+    // Always ground the itinerary in the user's real location so prices use
+    // their local currency (not USD) and origin-aware details are correct —
+    // even if they typed a destination without tapping "Use my location".
+    let effectiveLocation = userLocation;
+    if (!effectiveLocation) {
+      try {
+        const autoLoc = await getCurrentLocation();
+        if (autoLoc) effectiveLocation = await reverseGeocode(autoLoc);
+      } catch {
+        // non-fatal: fall back to USD/no origin
+      }
+    }
+
     try {
       const params: AiPlannerParams = {
         destination: dest,
@@ -86,7 +99,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
         budgetLevel,
         travelStyle,
         interests: selectedInterests,
-        location: userLocation || undefined,
+        location: effectiveLocation || undefined,
         notes: notes.trim() || undefined
       };
       const itinerary = await aiAgent.generateItinerary(params, currentUser);
