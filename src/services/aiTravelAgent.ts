@@ -157,7 +157,8 @@ const PLACE_SCHEMA = Schema.object({
           latitude: Schema.number(),
           longitude: Schema.number(),
           address: Schema.string(),
-          websiteUrl: Schema.string()
+          websiteUrl: Schema.string(),
+          imageUrl: Schema.string()
         }
       })
     })
@@ -178,6 +179,7 @@ interface RawDiscoveredPlace {
   longitude?: number;
   address?: string;
   websiteUrl?: string;
+  imageUrl?: string;
 }
 
 const CATEGORY_LABEL_TO_ID: Record<string, string> = {
@@ -207,39 +209,6 @@ const CATEGORY_LABEL_TO_ID: Record<string, string> = {
   resort: 'cat-hotel',
   lodge: 'cat-hotel',
   stay: 'cat-hotel'
-};
-
-const AI_IMAGE_POOL: Record<string, string[]> = {
-  'cat-rest': [
-    'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1000&q=80'
-  ],
-  'cat-hist': [
-    'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=1000&q=80'
-  ],
-  'cat-out': [
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1000&q=80'
-  ],
-  'cat-night': [
-    'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1000&q=80'
-  ],
-  'cat-shop': [
-    'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=1000&q=80'
-  ],
-  'cat-hotel': [
-    'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=1000&q=80'
-  ]
 };
 
 const VALID_PRICE_LEVELS = ['$', '$$', '$$$', '$$$$'];
@@ -404,8 +373,9 @@ function buildDiscoverPrompt(query: string, location: UserLocation | null, count
     `Find ${count} real, specific, notable places around the world that best match this search: "${query}".`,
     originHint,
     'Only include real, well-known places with confident details — famous landmarks, acclaimed restaurants, iconic hotels, distinctive neighborhoods, natural wonders, markets, and nightlife spots.',
-    'Each place needs: exact name; city; country; a vivid 1-2 sentence description; 3-4 short tags; a realistic average rating between 3.8 and 5.0; a plausible review count; a price level that is exactly one of $, $$, $$$, $$$$; an approximate latitude/longitude; and a website URL if you know one.',
-    'Use the place\'s common English name exactly as it appears in travel guides and Wikipedia, alongside its real city — the picture is matched by looking up that name and city in a public encyclopedia, so the name must be precise and searchable.',
+    "Each place needs: exact name; city; country; a vivid 1-2 sentence description; 3-4 short tags; a realistic average rating between 3.8 and 5.0; a plausible review count; a price level that is exactly one of $, $$, $$$, $$$$; an approximate latitude/longitude; and a website URL if you know one.",
+    "imageUrl: provide the direct address of a real photo of this exact place hosted on Wikipedia/Wikimedia Commons (upload.wikimedia.org) ONLY if you are genuinely confident it is that place's own photo. Otherwise leave imageUrl empty — it will be matched automatically.",
+    "Use the place's common English name exactly as it appears in travel guides and Wikipedia, alongside its real city — the picture is matched by looking up that name and city in a public encyclopedia, so the name must be precise and searchable.",
     'Set category to exactly one of: Restaurant, Historical, Nature, Nightlife, Shopping, Hotel.',
     `Return only valid JSON: an object with a "places" array of 1 to ${count} items using the requested schema.`,
     'Never fabricate a place. If you cannot confidently identify enough real matches, return fewer higher-confidence ones.'
@@ -453,7 +423,6 @@ function mapDiscoveredPlaces(text: string, count: number, categories: Category[]
     seen.add(dedupeKey);
 
     const categoryId = resolveCategoryId(raw);
-    const pool = AI_IMAGE_POOL[categoryId] || AI_IMAGE_POOL['cat-hist'];
     const priceLevelRaw = (raw.priceLevel || '').trim();
     const priceLevel = (VALID_PRICE_LEVELS.includes(priceLevelRaw) ? priceLevelRaw : '$$') as Place['priceLevel'];
 
@@ -476,7 +445,7 @@ function mapDiscoveredPlaces(text: string, count: number, categories: Category[]
       country,
       description: (raw.description || '').trim() || `A standout ${categoryId.replace('cat-', '')} experience.`,
       websiteUrl: (raw.websiteUrl || '').trim() || undefined,
-      imageUrl: pool[places.length % pool.length],
+      imageUrl: (raw.imageUrl || '').trim(),
       averageRating: rating || 4.5,
       reviewCount: reviewCount || 1,
       priceLevel,

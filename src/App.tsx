@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Place, Category, User, Itinerary } from './types/travel';
 import { dataConnect } from './services/dataConnectService';
 import { aiAgent } from './services/aiTravelAgent';
+import { enrichPlacesWithImages } from './services/placeImages';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { PlaceExplorer } from './components/PlaceExplorer';
@@ -44,6 +45,7 @@ export function App() {
       setCurrentUser(user);
 
       const bms = await dataConnect.getMyBookmarks();
+      await enrichPlacesWithImages(bms);
       setBookmarkedPlaces(bms);
 
       const itins = await dataConnect.getSavedItineraries();
@@ -58,6 +60,7 @@ export function App() {
   const fetchPlaces = async (catId: string, query: string) => {
     const trimmed = (query || '').trim();
     const local = await dataConnect.getPlaces(catId, trimmed);
+    await enrichPlacesWithImages(local);
 
     // No keyword: plain local/category browsing.
     if (!trimmed) {

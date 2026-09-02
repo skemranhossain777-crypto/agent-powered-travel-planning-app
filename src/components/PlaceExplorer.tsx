@@ -1,6 +1,7 @@
 import React from 'react';
 import { Category, Place } from '../types/travel';
 import { Star, MapPin, Bookmark, ExternalLink, MessageSquare, Utensils, Landmark, Trees, Wine, ShoppingBag, Hotel, Search } from 'lucide-react';
+import { PlaceImage } from './PlaceImage';
 
 interface PlaceExplorerProps {
   places: Place[];
@@ -119,7 +120,7 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
 
                 {/* Image Wrap */}
                 <div className="place-card-image-wrap">
-                  <img src={place.imageUrl} alt={place.name} className="place-card-img" />
+                  <PlaceImage src={place.imageUrl} alt={place.name} className="place-card-img" />
                   <div className="place-card-overlay" />
 
                   <div className="card-top-row">

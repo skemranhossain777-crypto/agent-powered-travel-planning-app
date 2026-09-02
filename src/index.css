@@ -734,6 +734,33 @@ button {
 
 .place-card:hover .place-card-img { transform: scale(1.07); filter: saturate(1.1); }
 
+/* Branded placeholder for places that have no verified original photo yet */
+.img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background:
+    radial-gradient(120% 120% at 20% 20%, rgba(0, 242, 254, 0.16), transparent 55%),
+    radial-gradient(120% 120% at 80% 80%, rgba(168, 85, 247, 0.16), transparent 55%),
+    linear-gradient(160deg, #16203a, #0c1226);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.img-placeholder-icon {
+  width: 26px;
+  height: 26px;
+  color: var(--accent-cyan);
+  opacity: 0.85;
+}
+
 .place-card-overlay {
   position: absolute;
   inset: 0;

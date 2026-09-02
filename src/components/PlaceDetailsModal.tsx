@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Place, Review } from '../types/travel';
 import { dataConnect } from '../services/dataConnectService';
 import { X, Star, MapPin, Globe, Bookmark, MessageSquare } from 'lucide-react';
+import { PlaceImage } from './PlaceImage';
 
 interface PlaceDetailsModalProps {
   place: Place | null;
@@ -34,7 +35,7 @@ export const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({
         
         {/* Header Image Hero */}
         <div style={{ position: 'relative', height: '260px', width: '100%' }}>
-          <img
+          <PlaceImage
             src={place.imageUrl}
             alt={place.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}

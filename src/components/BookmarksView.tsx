@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Place, Itinerary } from '../types/travel';
 import { Bookmark, Map, Star, MapPin, ExternalLink, Trash2, Sparkles } from 'lucide-react';
+import { PlaceImage } from './PlaceImage';
 
 interface BookmarksViewProps {
   savedPlaces: Place[];
@@ -69,7 +70,7 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
             {savedPlaces.map((place) => (
               <div key={place.id} className="place-card">
                 <div className="place-card-image-wrap">
-                  <img src={place.imageUrl} alt={place.name} className="place-card-img" />
+                  <PlaceImage src={place.imageUrl} alt={place.name} className="place-card-img" />
                   <div className="place-card-overlay" />
 
                   <button
