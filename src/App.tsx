@@ -144,13 +144,63 @@ export function App() {
     }
   };
 
+  // AI discovery query + heading per category tab (used when browsing a
+  // category with no keyword so the tabs feel dynamic, not just local seed).
+  const CATEGORY_DISCOVER: Record<string, { query: string; heading: string }> = {
+    'cat-rest': { query: 'highly rated restaurants and famous dining spots worldwide', heading: 'Restaurants & Dining' },
+    'cat-hist': { query: 'iconic historical sites and landmarks worldwide', heading: 'Historical Sites' },
+    'cat-out': { query: 'incredible outdoor and nature destinations worldwide', heading: 'Outdoor & Nature' },
+    'cat-night': { query: 'best nightlife, bars and entertaining venues worldwide', heading: 'Nightlife & Bars' },
+    'cat-shop': { query: 'famous shopping areas, malls and bazaars worldwide', heading: 'Shopping & Bazaars' },
+    'cat-hotel': { query: 'top rated hotels and resorts worldwide', heading: 'Hotels & Resorts' }
+  };
+
+  const discoverByCategory = async (catId: string, catName: string, loc: UserLocation | null) => {
+    const spec = CATEGORY_DISCOVER[catId] || { query: `top ${catName} places worldwide`, heading: catName };
+    const locationHint = loc && loc.label ? ` near ${loc.label}` : '';
+    setIsExploring(true);
+    try {
+      const result = await Promise.race([
+        aiAgent.discoverPlaces(spec.query + locationHint, loc, 8, currentUser),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
+      ]);
+      if (!result.length) throw new Error('AI returned no places');
+      setPlaces(result);
+      setExploreHeading(spec.heading);
+    } catch (err) {
+      console.error('[App] category AI discovery failed:', err);
+      const local = await dataConnect.getPlaces(catId, '');
+      await enrichPlacesWithImages(local);
+      setPlaces(local);
+      setExploreHeading(spec.heading);
+      addToast('info', `AI discovery unavailable — showing saved ${catName} places instead.`);
+    } finally {
+      setIsExploring(false);
+    }
+  };
+
   const fetchPlaces = async (catId: string, query: string) => {
     const trimmed = (query || '').trim();
     const local = await dataConnect.getPlaces(catId, trimmed);
     await enrichPlacesWithImages(local);
 
-    // No keyword: plain local/category browsing.
+    // No keyword: when browsing a specific category, run dynamic AI discovery
+    // for that category instead of silently showing the local seed.
+    if (!trimmed && catId !== 'all') {
+      const catName = categories.find((c) => c.id === catId)?.name ?? catId;
+      let loc: UserLocation | null = null;
+      if (currentUser) {
+        const rawLoc = await getCurrentLocation();
+        if (rawLoc) loc = await reverseGeocode(rawLoc);
+      }
+      await discoverByCategory(catId, catName, loc);
+      return;
+    }
     if (!trimmed) {
+      if (catId === 'all') {
+        await loadExploreFeed(currentUser);
+        return;
+      }
       setPlaces(local);
       return;
     }
