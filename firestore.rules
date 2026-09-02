@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // Request helpers
+    // ============================================================
+    function signedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Admin allow-list. Add/remove admin emails here (must match Firebase Auth emails).
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in [
+        'skemranhossain777.crypto@gmail.com'
+      ];
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // ============================================================
+    // users/{uid}  — public profile-ish identity + login metadata
+    //   Owned by the user; admin may read all. Prelog readable.
+    // ============================================================
+    match /users/{uid} {
+      allow get, read: if isAdmin() || isSelf(uid);
+      allow create, update: if isSelf(uid);
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // profiles/{uid} — user preferences
+    //   User owns; admin may read all (dashboard).
+    // ============================================================
+    match /profiles/{uid} {
+      allow get, read: if isAdmin() || isSelf(uid);
+      allow create, update: if isSelf(uid);
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // sessions/{uid}/logins/{id} — login-time records (per sign-in)
+    //   User owns writes; admin may read all.
+    // ============================================================
+    match /sessions/{uid}/logins/{id} {
+      allow get, read: if isAdmin() || isSelf(uid);
+      allow create: if isSelf(uid);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // bookmarks/{uid}/items/{placeId}
+    // ============================================================
+    match /bookmarks/{uid}/items/{placeId} {
+      allow get, list: if isAdmin() || isSelf(uid);
+      allow create, update: if isSelf(uid);
+      allow delete: if isSelf(uid);
+    }
+
+    // ============================================================
+    // itineraries/{uid}/items/{itineraryId}
+    // ============================================================
+    match /itineraries/{uid}/items/{itineraryId} {
+      allow get, list: if isAdmin() || isSelf(uid);
+      allow create, update: if isSelf(uid);
+      allow delete: if isSelf(uid);
+    }
+
+    // ============================================================
+    // activity/{uid}/events/{eventId}
+    // ============================================================
+    match /activity/{uid}/events/{eventId} {
+      allow get, list: if isAdmin() || isSelf(uid);
+      allow create, update: if isSelf(uid);
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // reviews/{id} — public, any signed-in user may read; author owns writes
+    // ============================================================
+    match /reviews/{id} {
+      allow get, list: if signedIn() || isAdmin();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if signedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // places, categories, bookmarksMeta — static product content.
+    //   Publicly readable so the site works for anonymous browsing.
+    // ============================================================
+    match /places/{id} {
+      allow get, list: if true;
+      allow write: if false; // product content managed via seed/admin only
+    }
+    match /categories/{id} {
+      allow get, list: if true;
+      allow write: if false;
+    }
+    match /bookmarksMeta/{placeId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}

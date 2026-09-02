@@ -1,12 +1,13 @@
 import React from 'react';
-import { Compass, Sparkles, Bookmark, Map, MessageSquare } from 'lucide-react';
+import { Compass, Sparkles, Bookmark, Map, MessageSquare, User as UserIcon, LogIn } from 'lucide-react';
 import { User } from '../types/travel';
 
 interface NavbarProps {
-  activeTab: 'explore' | 'bookmarks' | 'itineraries';
-  setActiveTab: (tab: 'explore' | 'bookmarks' | 'itineraries') => void;
+  activeTab: 'explore' | 'bookmarks' | 'itineraries' | 'profile';
+  setActiveTab: (tab: 'explore' | 'bookmarks' | 'itineraries' | 'profile') => void;
   onOpenAiPlanner: () => void;
   onToggleChat: () => void;
+  onOpenAuth: () => void;
   bookmarkCount: number;
   savedItineraryCount: number;
   currentUser: User | null;
@@ -17,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenAiPlanner,
   onToggleChat,
+  onOpenAuth,
   bookmarkCount,
   savedItineraryCount,
   currentUser
@@ -74,6 +76,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="badge-count" style={{ background: '#7000ff', color: '#fff' }}>{savedItineraryCount}</span>
               )}
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className={`nav-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+            >
+              <UserIcon className="w-4 h-4" />
+              {currentUser ? 'My Profile' : 'Profile'}
+            </button>
           </nav>
 
           {/* Right Action CTAs */}
@@ -98,14 +109,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="ai-badge-pulse" style={{ position: 'absolute', top: '3px', right: '3px', width: '8px', height: '8px', background: '#10b981', borderRadius: '50%' }} />
             </button>
 
-            {currentUser && (
-              <div className="navbar-user">
+            {currentUser ? (
+              <button
+                type="button"
+                className="navbar-user"
+                onClick={() => setActiveTab('profile')}
+                title="Open my profile"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
+              >
                 <img
-                  src={currentUser.avatarUrl}
+                  src={currentUser.avatarUrl || ''}
                   alt={currentUser.username}
                   className="navbar-avatar"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    const fb = (e.currentTarget as HTMLImageElement).parentElement?.querySelector('.navbar-avatar-fallback');
+                    if (fb) ((fb as HTMLElement).style.display = 'flex');
+                  }}
                 />
-              </div>
+                <span className="navbar-avatar-fallback" style={{ display: currentUser.avatarUrl ? 'none' : 'flex' }}>
+                  {currentUser.username.charAt(0).toUpperCase()}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenAuth}
+                className="btn-secondary navbar-login"
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="navbar-cta-label">Sign In</span>
+              </button>
             )}
           </div>
 
@@ -163,6 +197,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           {savedItineraryCount > 0 && (
             <span className="mobile-tab-count" style={{ background: '#7000ff', color: '#fff' }}>{savedItineraryCount}</span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`mobile-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+        >
+          <UserIcon />
+          <span className="tab-label">Profile</span>
         </button>
       </nav>
     </>

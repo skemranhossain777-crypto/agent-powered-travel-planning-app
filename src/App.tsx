@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Place, Category, User, Itinerary } from './types/travel';
+import { Place, Category, User, Itinerary, UserActivityEvent } from './types/travel';
 import { dataConnect } from './services/dataConnectService';
 import { aiAgent } from './services/aiTravelAgent';
+import { authService } from './services/authService';
 import { enrichPlacesWithImages } from './services/placeImages';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -12,16 +13,20 @@ import { ItineraryView } from './components/ItineraryView';
 import { BookmarksView } from './components/BookmarksView';
 import { ReviewModal } from './components/ReviewModal';
 import { AiChatDrawer } from './components/AiChatDrawer';
+import { AuthModal } from './components/AuthModal';
+import { ProfileView } from './components/ProfileView';
+import { AdminDashboard } from './components/AdminDashboard';
 import { NotificationToast, ToastMessage } from './components/NotificationToast';
-import { Compass, Sparkles, Map, Heart, ShieldCheck } from 'lucide-react';
+import { Compass, Sparkles } from 'lucide-react';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'explore' | 'bookmarks' | 'itineraries'>('explore');
+  const [activeTab, setActiveTab] = useState<'explore' | 'bookmarks' | 'itineraries' | 'profile'>('explore');
   const [places, setPlaces] = useState<Place[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [bookmarkedPlaces, setBookmarkedPlaces] = useState<Place[]>([]);
   const [savedItineraries, setSavedItineraries] = useState<Itinerary[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [activities, setActivities] = useState<UserActivityEvent[]>([]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -33,29 +38,49 @@ export function App() {
 
   const [isAiPlannerOpen, setIsAiPlannerOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup'>('signin');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    const unsub = authService.subscribe((user) => {
+      setCurrentUser(user);
+      if (user) {
+        setActivities(dataConnect.getActivity(user.id));
+      } else {
+        setActivities([]);
+        setActiveTab('explore');
+      }
+    });
+    return unsub;
+  }, []);
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       const cats = await dataConnect.getCategories();
       setCategories(cats);
-
-      const user = await dataConnect.getCurrentUser();
-      setCurrentUser(user);
-
-      const bms = await dataConnect.getMyBookmarks();
-      await enrichPlacesWithImages(bms);
-      setBookmarkedPlaces(bms);
-
-      const itins = await dataConnect.getSavedItineraries();
-      setSavedItineraries(itins);
-
       fetchPlaces('all', '');
     };
-
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadUserData = async (user: User) => {
+    const bms = await dataConnect.getMyBookmarks();
+    await enrichPlacesWithImages(bms);
+    setBookmarkedPlaces(bms);
+    const itins = await dataConnect.getSavedItineraries();
+    setSavedItineraries(itins);
+    setActivities(dataConnect.getActivity(user.id));
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      loadUserData(currentUser);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   const fetchPlaces = async (catId: string, query: string) => {
     const trimmed = (query || '').trim();
@@ -72,7 +97,7 @@ export function App() {
     // even when nothing in the local seed data does.
     setIsExploring(true);
     try {
-      const aiPlaces = await aiAgent.discoverPlaces(trimmed, null);
+      const aiPlaces = await aiAgent.discoverPlaces(trimmed, null, 8, currentUser);
       if (!aiPlaces.length) {
         setPlaces(local);
         addToast('info', `AI couldn't find verified places for "${trimmed}". Try a broader keyword.`);
@@ -110,39 +135,76 @@ export function App() {
   };
 
   const handleToggleBookmark = async (placeId: string) => {
-    const isSaved = await dataConnect.toggleBookmark(placeId);
-    const updatedBms = await dataConnect.getMyBookmarks();
-    setBookmarkedPlaces(updatedBms);
+    if (!currentUser) {
+      setAuthInitialMode('signin');
+      setIsAuthOpen(true);
+      addToast('info', 'Sign in to save places to your profile.');
+      return;
+    }
+    try {
+      const isSaved = await dataConnect.toggleBookmark(placeId);
+      const updatedBms = await dataConnect.getMyBookmarks();
+      await enrichPlacesWithImages(updatedBms);
+      setBookmarkedPlaces(updatedBms);
+      setActivities(dataConnect.getActivity(currentUser.id));
 
-    const place = places.find(p => p.id === placeId) || selectedPlace;
-    if (isSaved) {
-      addToast('success', `Saved "${place?.name || 'Place'}" to your bookmarks!`);
-    } else {
-      addToast('info', `Removed "${place?.name || 'Place'}" from bookmarks.`);
+      const place = places.find(p => p.id === placeId) || selectedPlace;
+      if (isSaved) {
+        addToast('success', `Saved "${place?.name || 'Place'}" to your bookmarks!`);
+      } else {
+        addToast('info', `Removed "${place?.name || 'Place'}" from bookmarks.`);
+      }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Could not update bookmark.');
     }
   };
 
   const handleSubmitReview = async (placeId: string, rating: number, comment: string) => {
-    await dataConnect.createReview(placeId, rating, comment);
-    addToast('success', 'Thank you! Your review has been submitted successfully.');
-    fetchPlaces(selectedCategory, searchQuery);
-    if (selectedPlace && selectedPlace.id === placeId) {
-      const updated = await dataConnect.getPlaceById(placeId);
-      if (updated) setSelectedPlace(updated);
+    if (!currentUser) {
+      setAuthInitialMode('signin');
+      setIsAuthOpen(true);
+      addToast('info', 'Sign in to leave a review.');
+      return;
+    }
+    try {
+      await dataConnect.createReview(placeId, rating, comment);
+      addToast('success', 'Thank you! Your review has been submitted successfully.');
+      fetchPlaces(selectedCategory, searchQuery);
+      setActivities(dataConnect.getActivity(currentUser.id));
+      if (selectedPlace && selectedPlace.id === placeId) {
+        const updated = await dataConnect.getPlaceById(placeId);
+        if (updated) setSelectedPlace(updated);
+      }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Could not submit review.');
     }
   };
 
-  const handleItineraryGenerated = (itinerary: Itinerary) => {
+  const handleItineraryGenerated = async (itinerary: Itinerary) => {
     setActiveItinerary(itinerary);
     setActiveTab('itineraries');
     addToast('success', `✨ AI generated ${itinerary.durationDays}-day trip to ${itinerary.destination}!`);
+    if (currentUser) {
+      setActivities(dataConnect.getActivity(currentUser.id));
+    }
   };
 
   const handleSaveItinerary = async (itinerary: Itinerary) => {
-    await dataConnect.saveItinerary(itinerary);
-    const updatedItins = await dataConnect.getSavedItineraries();
-    setSavedItineraries(updatedItins);
-    addToast('success', `Saved trip to ${itinerary.destination}!`);
+    if (!currentUser) {
+      setAuthInitialMode('signin');
+      setIsAuthOpen(true);
+      addToast('info', 'Sign in to save trips to your profile.');
+      return;
+    }
+    try {
+      await dataConnect.saveItinerary(itinerary);
+      const updatedItins = await dataConnect.getSavedItineraries();
+      setSavedItineraries(updatedItins);
+      setActivities(dataConnect.getActivity(currentUser.id));
+      addToast('success', `Saved trip to ${itinerary.destination}!`);
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Could not save itinerary.');
+    }
   };
 
   const handleDeleteItinerary = async (id: string) => {
@@ -166,6 +228,7 @@ export function App() {
         setActiveTab={setActiveTab}
         onOpenAiPlanner={() => setIsAiPlannerOpen(true)}
         onToggleChat={() => setIsChatOpen(!isChatOpen)}
+        onOpenAuth={() => setIsAuthOpen(true)}
         bookmarkCount={bookmarkedPlaces.length}
         savedItineraryCount={savedItineraries.length}
         currentUser={currentUser}
@@ -197,17 +260,32 @@ export function App() {
         )}
 
         {activeTab === 'bookmarks' && (
-          <BookmarksView
-            savedPlaces={bookmarkedPlaces}
-            savedItineraries={savedItineraries}
-            onRemoveBookmark={handleToggleBookmark}
-            onSelectPlace={(place) => setSelectedPlace(place)}
-            onSelectItinerary={(itin) => {
-              setActiveItinerary(itin);
-              setActiveTab('itineraries');
-            }}
-            onDeleteItinerary={handleDeleteItinerary}
-          />
+          !currentUser ? (
+            <div className="section-container">
+              <div className="state-panel">
+                <div className="state-panel-icon">
+                  <Compass className="w-7 h-7" />
+                </div>
+                <h3>Sign in to see your saved places</h3>
+                <p>Bookmarks and saved trips are stored on your profile. Create an account with Google or email to keep your travel plans.</p>
+                <button onClick={() => setIsAuthOpen(true)} className="btn-primary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                  Sign In / Create Account
+                </button>
+              </div>
+            </div>
+          ) : (
+            <BookmarksView
+              savedPlaces={bookmarkedPlaces}
+              savedItineraries={savedItineraries}
+              onRemoveBookmark={handleToggleBookmark}
+              onSelectPlace={(place) => setSelectedPlace(place)}
+              onSelectItinerary={(itin) => {
+                setActiveItinerary(itin);
+                setActiveTab('itineraries');
+              }}
+              onDeleteItinerary={handleDeleteItinerary}
+            />
+          )
         )}
 
         {activeTab === 'itineraries' && (
@@ -240,6 +318,39 @@ export function App() {
             </div>
           )
         )}
+
+        {activeTab === 'profile' && (
+          !currentUser ? (
+            <div className="section-container">
+              <div className="state-panel">
+                <div className="state-panel-icon">
+                  <Compass className="w-7 h-7" />
+                </div>
+                <h3>Create your VoyageAI profile</h3>
+                <p>Your AI travel agent personalizes recommendations based on your profile, saved places, planned trips, and reviews. Sign in with your real Google account or email to get started.</p>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button onClick={() => { setAuthInitialMode('signin'); setIsAuthOpen(true); }} className="btn-primary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                    Sign In
+                  </button>
+                  <button onClick={() => { setAuthInitialMode('signup'); setIsAuthOpen(true); }} className="btn-secondary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                    Create Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ProfileView
+                user={currentUser}
+                bookmarksCount={bookmarkedPlaces.length}
+                itinerariesCount={savedItineraries.length}
+                activities={activities}
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+              <AdminDashboard />
+            </>
+          )
+        )}
       </main>
 
       {/* Modals & Drawers */}
@@ -247,6 +358,8 @@ export function App() {
         isOpen={isAiPlannerOpen}
         onClose={() => setIsAiPlannerOpen(false)}
         onItineraryGenerated={handleItineraryGenerated}
+        currentUser={currentUser}
+        onRequireAuth={() => setIsAuthOpen(true)}
       />
 
       <PlaceDetailsModal
@@ -269,6 +382,18 @@ export function App() {
       <AiChatDrawer
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+        currentUser={currentUser}
+        onRequireAuth={() => setIsAuthOpen(true)}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onAuthenticated={() => {
+          const u = authService.user;
+          if (u) loadUserData(u);
+        }}
+        initialMode={authInitialMode}
       />
 
       {/* Notification Toast Stream */}

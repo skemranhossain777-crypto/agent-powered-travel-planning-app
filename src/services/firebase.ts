@@ -1,6 +1,8 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAI, GoogleAIBackend, AI } from 'firebase/ai';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
+import { getAuth, Auth, browserLocalPersistence } from 'firebase/auth';
+import { getFirestore, Firestore, initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore';
 
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyBuKBkPIRh-ARdun4uWpnLdP2mh0SYTur8',
@@ -14,6 +16,8 @@ export const FIREBASE_CONFIG = {
 
 let firebaseApp: FirebaseApp | null = null;
 let aiInstance: AI | null = null;
+let authInstance: Auth | null = null;
+let firestoreInstance: Firestore | null = null;
 let appCheckInitialized = false;
 
 export function getFirebaseApp(): FirebaseApp {
@@ -23,13 +27,35 @@ export function getFirebaseApp(): FirebaseApp {
   return firebaseApp;
 }
 
+export function getAuthInstance(): Auth {
+  if (!authInstance) {
+    authInstance = getAuth(getFirebaseApp());
+    void browserLocalPersistence;
+  }
+  return authInstance;
+}
+
+/**
+ * Returns the Firestore instance used for real user-authored persistence
+ * (profiles, bookmarks, itineraries, reviews, activity, sessions).
+ * Uses multi-tab persistent cache so data survives reloads across tabs.
+ */
+export function getFirestoreInstance(): Firestore {
+  if (!firestoreInstance) {
+    firestoreInstance = initializeFirestore(getFirebaseApp(), {
+      localCache: persistentLocalCache({ tabManager: persistentSingleTabManager(undefined) })
+    });
+  }
+  return firestoreInstance;
+}
+
 /**
  * Firebase AI Logic (Gemini Developer API) enforces Firebase App Check
  * (mandatory since July 2026), so calls only succeed with a valid App Check
  * token. This wires up App Check:
  *  - Development: enable debug mode using `VITE_APPCHECK_DEBUG_TOKEN`
  *    (see `.env.local`, which is gitignored). No reCAPTCHA is loaded.
- *  - Production: provide a real reCAPTCHA v3 site key via
+ *  - Production: provide a real reCAPTCHA Enterprise (SCORE) site key via
  *    `VITE_RECAPTCHA_SITE_KEY` and enforce it in the Firebase console.
  */
 function initAppCheck(): void {
@@ -56,7 +82,7 @@ function initAppCheck(): void {
   }
 
   // In debug mode the provider isn't consulted; the placeholder key is unused.
-  const provider = new ReCaptchaV3Provider(recaptchaSiteKey || 'unused-in-debug-mode');
+  const provider = new ReCaptchaEnterpriseProvider(recaptchaSiteKey || 'unused-in-debug-mode');
   initializeAppCheck(app, {
     provider,
     isTokenAutoRefreshEnabled: true

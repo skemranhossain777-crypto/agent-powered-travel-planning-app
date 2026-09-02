@@ -7,7 +7,8 @@ import {
   DayPlan,
   UserLocation,
   Place,
-  Category
+  Category,
+  User
 } from '../types/travel';
 import { describeLocation } from './geolocation';
 import { dataConnect } from './dataConnectService';
@@ -57,8 +58,62 @@ function conciergeLocationContext(location: UserLocation | null): string {
   return `The user's current location is ${describeLocation(location)}. Treat this as their origin and home base. Use it to ground local recommendations, day trips, and "near me" answers, and to estimate transit/flights from home. If the coordinates cannot be mapped to a recognizable place, say so and work from the coordinates as a general origin.`;
 }
 
-function getConciergeModel(location: UserLocation | null, alias: string): GenerativeModel {
-  const key = `${alias}|${location ? JSON.stringify(location) : 'none'}`;
+/**
+ * Builds a personalization block describing who the signed-in user is — their
+ * name, stated travel preferences, bookmarks, saved trips and reviews — so the
+ * agent can tailor suggestions to THEIR history rather than generic advice.
+ */
+function buildUserContext(user: User | null, includeActivity = true): string {
+  if (!user) {
+    return [
+      'The traveler is currently browsing anonymously (not signed in).',
+      'Do not invent any personal identity, name, interests, or history for them. Tailor advice only to what they say in this conversation.'
+    ].join(' ');
+  }
+
+  const p = user.profile;
+  const lines: string[] = [];
+  lines.push(`You are helping ${p.displayName || user.username} (email: ${user.email || 'unknown'}${user.provider === 'google' ? ', signed in with Google' : user.provider === 'email' ? ', signed in with email/password' : ''}).`);
+
+  if (p.homeCity) lines.push(`Home base (from profile): ${p.homeCity}.`);
+  if (p.bio) lines.push(`About them: ${p.bio}`);
+
+  const prefs: string[] = [];
+  if (p.interests && p.interests.length) prefs.push(`Preferred travel interests: ${p.interests.join(', ')}`);
+  if (p.travelStyles && p.travelStyles.length) prefs.push(`Travelling style: ${p.travelStyles.join(', ')}`);
+  if (p.budgetPreference) prefs.push(`Preferred budget: ${p.budgetPreference}`);
+  if (prefs.length) lines.push(prefs.join(' | '));
+
+  if (!includeActivity) {
+    return lines.join('\n');
+  }
+
+  const activity = dataConnect.getActivity(user.id);
+  if (activity.length) {
+    const bookmarks = activity.filter((a) => a.type === 'bookmark').slice(0, 10);
+    const itins = activity.filter((a) => a.type === 'itinerary').slice(0, 6);
+    const reviews = activity.filter((a) => a.type === 'review').slice(0, 5);
+
+    if (bookmarks.length) {
+      lines.push(`Places they have saved/bookmarked: ${[...new Set(bookmarks.map((b) => `${b.placeName}${b.city ? ' (' + b.city + ', ' + b.country + ')' : ''}`))].join('; ')}.`);
+    }
+    if (reviews.length) {
+      lines.push(`Places they have reviewed: ${[...new Set(reviews.map((r) => r.placeName))].join('; ')}.`);
+    }
+    if (itins.length) {
+      lines.push(`Trips they have planned before: ${itins.map((i) => `${i.placeName} (${i.detail || 'trip'})`).join('; ')}.`);
+    }
+  }
+
+  lines.push(
+    'Use this history to proactively suggest the kinds of places, cuisines, and activities this traveler has already shown interest in, while still introducing some new but complementary options. Do not claim to know details about them beyond what is listed.'
+  );
+
+  return lines.join('\n');
+}
+
+function getConciergeModel(location: UserLocation | null, alias: string, user?: User | null): GenerativeModel {
+  const key = `${alias}|${location ? JSON.stringify(location) : 'none'}|${user?.id || 'anon'}`;
   if (!conciergeModels[key]) {
     const ai = getAIService();
     conciergeModels[key] = getGenerativeModel(ai, {
@@ -74,7 +129,8 @@ function getConciergeModel(location: UserLocation | null, alias: string): Genera
         `You help users discover destinations worldwide, recommend hidden gems, packing lists, optimal travel seasons, budget breakdowns, and create real, specific travel advice.`,
         `Be concise, structured (use short bullet lists), and practical. If you are unsure about a specific current fact (opening hours, prices, seasons), give reasonable guidance and suggest verifying it.`,
         `Never invent dangerous or misleading safety info. Keep answers under ~200 words and use simple markdown (bold headings and dashes) that renders well in a chat.`,
-        conciergeLocationContext(location)
+        conciergeLocationContext(location),
+        buildUserContext(user || null)
       ].join('\n')
     });
   }
@@ -300,7 +356,7 @@ function destinationSpec(params: AiPlannerParams): string {
   return `Pick a destination that best fits the traveler's interests and notes, and state it in the response.`;
 }
 
-function buildItineraryPrompt(params: AiPlannerParams): string {
+function buildItineraryPrompt(params: AiPlannerParams, user?: User | null): string {
   const lines: string[] = [
     'You are a travel-planning agent. Create a realistic, specific, day-by-day itinerary. Never use generic placeholder phrasing.',
     '',
@@ -315,6 +371,8 @@ function buildItineraryPrompt(params: AiPlannerParams): string {
     lines.push(`Traveler's intention / extra requirements: ${params.notes.trim()}`);
   }
   lines.push(
+    '',
+    buildUserContext(user || null, false),
     '',
     destinationSpec(params),
     '',
@@ -466,7 +524,7 @@ export class AiTravelAgentService {
    * query (e.g. "Paris rooftop restaurants" or "safari lodges in Kenya").
    * Fully generative — results come straight from Gemini, never from a cache.
    */
-  async discoverPlaces(query: string, location: UserLocation | null = null, count = 8): Promise<Place[]> {
+  async discoverPlaces(query: string, location: UserLocation | null = null, count = 8, user?: User | null): Promise<Place[]> {
     try {
       const text = await runWithModelFallback(
         (alias) => getDiscoverModel(alias),
@@ -476,6 +534,13 @@ export class AiTravelAgentService {
       const cats = await dataConnect.getCategories();
       const places = mapDiscoveredPlaces(text, count, cats);
       const enriched = await enrichPlacesWithImages(places);
+      if (user) {
+        places.slice(0, 2).forEach((p) => {
+          dataConnect.recordActivityFromService?.('discover', {
+            placeName: p.name, city: p.city, country: p.country, categoryId: p.categoryId, detail: query
+          }, user.id);
+        });
+      }
       if (enriched.length) {
         return enriched;
       }
@@ -500,11 +565,11 @@ export class AiTravelAgentService {
    * Throws if generation or JSON parsing fails — it never silently returns
    * pre-saved or hardcoded content.
    */
-  async generateItinerary(params: AiPlannerParams): Promise<Itinerary> {
+  async generateItinerary(params: AiPlannerParams, user?: User | null): Promise<Itinerary> {
     try {
       const text = await runWithModelFallback(
         (alias) => getPlannerModel(alias),
-        async (model) => (await model.generateContent(buildItineraryPrompt(params))).response.text()
+        async (model) => (await model.generateContent(buildItineraryPrompt(params, user))).response.text()
       );
       const raw = JSON.parse(text) as RawItinerary;
       const itinerary = buildItinerary(raw, params);
@@ -531,11 +596,12 @@ export class AiTravelAgentService {
   async processChatMessage(
     userPrompt: string,
     history?: Array<{ role: 'user' | 'model'; text: string }>,
-    location?: UserLocation | null
+    location?: UserLocation | null,
+    user?: User | null
   ): Promise<ChatMessage> {
     try {
       const text = await runWithModelFallback(
-        (alias) => getConciergeModel(location || null, alias),
+        (alias) => getConciergeModel(location || null, alias, user),
         async (model) => {
           const chat = model.startChat({
             history: (history || []).slice(-20).map((m) => ({

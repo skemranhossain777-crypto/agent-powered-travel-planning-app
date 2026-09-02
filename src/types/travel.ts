@@ -1,9 +1,53 @@
+export interface UserProfile {
+  displayName?: string;
+  email?: string;
+  avatarUrl?: string;
+  bio?: string;
+  homeCity?: string;
+  travelStyles: string[];
+  interests: string[];
+  budgetPreference?: 'Budget' | 'Moderate' | 'Luxury';
+}
+
 export interface User {
   id: string;
   username: string;
   email: string;
   joinDate?: string;
   avatarUrl?: string;
+  provider: 'google' | 'email' | 'anonymous';
+  emailVerified?: boolean;
+  profile: UserProfile;
+  /** ISO timestamp of the most recent sign-in (mirrors sessions collection). */
+  lastLoginAt?: string;
+}
+
+/** A single sign-in occurrence, written to Firestore `sessions/{uid}/{sessionId}`. */
+export interface UserSession {
+  id: string;
+  uid: string;
+  email: string;
+  loginAt: string;
+  provider: 'google' | 'email';
+}
+
+/** Admin view — aggregate of a user's public data for the admin dashboard. */
+export interface AdminUserSummary {
+  uid: string;
+  email: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  provider?: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+  lastLoginProvider?: string;
+  bookmarksCount: number;
+  itinerariesCount: number;
+  reviewsCount: number;
+  activityCount: number;
+  sessionsCount: number;
+  lastSessions: UserSession[];
 }
 
 export interface Category {
@@ -59,6 +103,18 @@ export interface Activity {
   category: string;
   estimatedCost: string;
   coordinates?: [number, number];
+}
+
+export interface UserActivityEvent {
+  id: string;
+  type: 'bookmark' | 'itinerary' | 'review' | 'discover' | 'chat';
+  placeId?: string;
+  placeName?: string;
+  city?: string;
+  country?: string;
+  categoryId?: string;
+  detail?: string;
+  createdAt: string;
 }
 
 export interface DayPlan {

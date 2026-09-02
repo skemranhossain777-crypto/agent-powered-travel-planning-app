@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChatMessage, UserLocation } from '../types/travel';
+import { ChatMessage, UserLocation, User } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
 import { getCurrentLocation, describeLocation } from '../services/geolocation';
-import { X, Sparkles, Send, MapPin } from 'lucide-react';
+import { X, Sparkles, Send, MapPin, LogIn } from 'lucide-react';
 
 interface AiChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  currentUser: User | null;
+  onRequireAuth: () => void;
 }
 
-export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) => {
+export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose, currentUser, onRequireAuth }) => {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -58,6 +60,10 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
   if (!isOpen) return null;
 
   const handleSend = async (textToSend?: string) => {
+    if (!currentUser) {
+      onRequireAuth();
+      return;
+    }
     const prompt = textToSend || inputPrompt;
     if (!prompt || !prompt.trim() || isTyping) return;
 
@@ -80,7 +86,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
           role: m.sender === 'user' ? 'user' as const : 'model' as const,
           text: m.text
         }));
-      const assistantMsg = await aiAgent.processChatMessage(prompt, history, userLocation);
+      const assistantMsg = await aiAgent.processChatMessage(prompt, history, userLocation, currentUser);
       setMessages(prev => [...prev, assistantMsg]);
     } catch (err) {
       console.error(err);
@@ -162,6 +168,26 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose }) =
             <div className="typing-indicator">
               <span className="typing-dots"><span /><span /><span /></span>
               <span className="typing-label">AI Agent is thinking…</span>
+            </div>
+          )}
+
+          {!currentUser && (
+            <div className="chat-auth-cta">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <LogIn className="w-5 h-5" />
+                <span style={{ fontWeight: 700 }}>Sign in to chat with your AI concierge</span>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>
+                Your agent personalizes recommendations using your name, interests, home city, saved places, and trip plans.
+              </p>
+              <button
+                type="button"
+                onClick={onRequireAuth}
+                className="btn-primary"
+                style={{ marginTop: '0.7rem', padding: '0.6rem 1.4rem', width: '100%' }}
+              >
+                Sign In / Create Account
+              </button>
             </div>
           )}
 

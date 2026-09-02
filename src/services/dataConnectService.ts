@@ -1,4 +1,5 @@
-import { Place, Category, Review, Bookmark, User, Itinerary } from '../types/travel';
+import { Place, Category, Review, Bookmark, User, Itinerary, UserProfile, UserActivityEvent } from '../types/travel';
+import { firestoreService } from './firestoreService';
 
 // Initial Seed Data mirroring dataconnect/seed_data.gql & expanded with rich visual destinations
 const INITIAL_CATEGORIES: Category[] = [
@@ -156,7 +157,7 @@ const INITIAL_REVIEWS: Review[] = [
     id: 'rev-1',
     placeId: 'place-1',
     userId: 'usr-1',
-    user: { id: 'usr-1', username: 'Elena_Traveler', email: 'elena@voyage.ai', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80' },
+    user: { id: 'usr-1', username: 'Elena_Traveler', email: 'elena@voyage.ai', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80', provider: 'anonymous', profile: { displayName: 'Elena Traveler', travelStyles: [], interests: [] } },
     rating: 5,
     comment: 'The sunset view over St. Peter’s Basilica combined with the truffle tasting menu was unforgettable!',
     createdAt: '2026-07-28T14:32:00Z'
@@ -165,43 +166,183 @@ const INITIAL_REVIEWS: Review[] = [
     id: 'rev-2',
     placeId: 'place-3',
     userId: 'usr-2',
-    user: { id: 'usr-2', username: 'Marco_Polo', email: 'marco@voyage.ai', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80' },
+    user: { id: 'usr-2', username: 'Marco_Polo', email: 'marco@voyage.ai', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80', provider: 'anonymous', profile: { displayName: 'Marco Polo', travelStyles: [], interests: [] } },
     rating: 5,
     comment: 'Pro tip: Arrive at 6:30 AM before crowds gather! The wind rustling through the bamboo stalks is magical.',
     createdAt: '2026-07-30T09:15:00Z'
   }
 ];
 
+interface UserData {
+  bookmarks: Bookmark[];
+  itineraries: Itinerary[];
+  profile: UserProfile;
+  reviews: Review[];
+  activity: UserActivityEvent[];
+}
+
+interface UserDataStore {
+  [uid: string]: UserData;
+}
+
+const DEFAULT_PROFILE: UserProfile = {
+  displayName: 'Traveler',
+  travelStyles: ['Couples'],
+  interests: ['Culture & Heritage', 'Gourmet Dining']
+};
+
+const LISTENERS_KEY = 'voyage_hydrated';
+
 class DataConnectService {
   private places: Place[];
   private categories: Category[];
-  private reviews: Review[];
-  private bookmarks: Bookmark[];
-  private currentUser: User;
-  private savedItineraries: Itinerary[];
+  private seedReviews: Review[];
+  private userData: UserDataStore;
+  private activeUid: string | null = null;
 
   constructor() {
     this.categories = JSON.parse(localStorage.getItem('voyage_categories') || JSON.stringify(INITIAL_CATEGORIES));
     this.places = JSON.parse(localStorage.getItem('voyage_places') || JSON.stringify(INITIAL_PLACES));
-    this.reviews = JSON.parse(localStorage.getItem('voyage_reviews') || JSON.stringify(INITIAL_REVIEWS));
-    this.bookmarks = JSON.parse(localStorage.getItem('voyage_bookmarks') || '[]');
-    this.savedItineraries = JSON.parse(localStorage.getItem('voyage_itineraries') || '[]');
+    this.seedReviews = JSON.parse(localStorage.getItem('voyage_seed_reviews') || JSON.stringify(INITIAL_REVIEWS));
 
-    this.currentUser = {
-      id: 'usr-demo-1',
-      username: 'Alex_Explorer',
-      email: 'alex.explorer@voyage.ai',
-      joinDate: '2026-01-15T00:00:00Z',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'
+    // Migrate the legacy single-user stores (keyed by nothing) into the new
+    // per-user store under the demo uid so existing saved data isn't lost.
+    const defaultData: UserData = {
+      bookmarks: [],
+      itineraries: [],
+      reviews: [],
+      activity: [],
+      profile: { ...DEFAULT_PROFILE }
     };
+    this.userData = JSON.parse(localStorage.getItem('voyage_user_data') || '{}');
+    if (!this.userData['legacy-demo']) {
+      this.userData['legacy-demo'] = defaultData;
+    }
+
+    const legacyBm = JSON.parse(localStorage.getItem('voyage_bookmarks') || '[]');
+    const legacyIt = JSON.parse(localStorage.getItem('voyage_itineraries') || '[]');
+    if (Array.isArray(legacyBm) && legacyBm.length) {
+      this.userData['legacy-demo'].bookmarks = legacyBm;
+    }
+    if (Array.isArray(legacyIt) && legacyIt.length) {
+      this.userData['legacy-demo'].itineraries = legacyIt;
+    }
+    this.activeUid = localStorage.getItem('voyage_active_uid') || null;
+  }
+
+  setActiveUser(uid: string): void {
+    this.activeUid = uid;
+    localStorage.setItem('voyage_active_uid', uid);
+    this.persistUserData();
+    if (!this.userData[uid]) {
+      this.userData[uid] = {
+        bookmarks: [],
+        itineraries: [],
+        reviews: [],
+        activity: [],
+        profile: { ...DEFAULT_PROFILE, displayName: 'Traveler' }
+      };
+      this.persistUserData();
+    }
+  }
+
+  clearActiveUser(): void {
+    this.activeUid = null;
+    localStorage.removeItem('voyage_active_uid');
+  }
+
+  getUserProfile(uid: string): UserProfile {
+    return this.userData[uid]?.profile || { ...DEFAULT_PROFILE };
+  }
+
+  ensureUserProfile(uid: string, partial: Partial<UserProfile>): void {
+    if (!this.userData[uid]) this.setActiveUser(uid);
+    this.userData[uid].profile = {
+      ...this.userData[uid].profile,
+      ...partial
+    };
+    this.persistUserData();
+  }
+
+  updateUserProfile(partial: Partial<UserProfile>): void {
+    const scoped = this.scope();
+    if (!scoped) return;
+    this.userData[scoped.uid].profile = {
+      ...this.userData[scoped.uid].profile,
+      ...partial
+    };
+    this.persistUserData();
+    this.sync(() => firestoreService.updateUserProfile(scoped.uid, this.userData[scoped.uid].profile));
+  }
+
+  getActivity(uid: string): UserActivityEvent[] {
+    return this.userData[uid]?.activity || [];
+  }
+
+  recordActivityFromService(type: UserActivityEvent['type'], event: Omit<UserActivityEvent, 'id' | 'type' | 'createdAt'>, uid: string): void {
+    if (!this.userData[uid]) this.setActiveUser(uid);
+    this.userData[uid].activity.unshift({
+      ...event,
+      type,
+      id: `evt-ext-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    });
+    this.userData[uid].activity = this.userData[uid].activity.slice(0, 120);
+    this.persistUserData();
+    this.sync(() => firestoreService.recordActivity(uid, type, event));
+  }
+
+  private recordActivity(type: UserActivityEvent['type'], event: Omit<UserActivityEvent, 'id' | 'type' | 'createdAt'>): void {
+    const scoped = this.scope();
+    if (!scoped || !scoped.data.activity) return;
+    this.userData[scoped.uid].activity.unshift({
+      ...event,
+      type,
+      id: `evt-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    });
+    // keep it bounded
+    this.userData[scoped.uid].activity = this.userData[scoped.uid].activity.slice(0, 120);
+    this.sync(() => firestoreService.recordActivity(scoped.uid, type, event));
   }
 
   private persist() {
     localStorage.setItem('voyage_categories', JSON.stringify(this.categories));
     localStorage.setItem('voyage_places', JSON.stringify(this.places));
-    localStorage.setItem('voyage_reviews', JSON.stringify(this.reviews));
-    localStorage.setItem('voyage_bookmarks', JSON.stringify(this.bookmarks));
-    localStorage.setItem('voyage_itineraries', JSON.stringify(this.savedItineraries));
+    localStorage.setItem('voyage_seed_reviews', JSON.stringify(this.seedReviews));
+    localStorage.setItem('voyage_user_data', JSON.stringify(this.userData));
+    localStorage.setItem('voyage_hydrated', 'true');
+  }
+
+  private persistUserData(): void {
+    localStorage.setItem('voyage_user_data', JSON.stringify(this.userData));
+  }
+
+  /**
+   * Best-effort mirror to Cloud Firestore. Never blocks or throws to the app —
+   * a Firestore hiccup must not break the local-sync UX, but when Firestore is
+   * reachable all user-authored data is persisted to the cloud so it survives
+   * across devices and is visible to the admin dashboard.
+   */
+  private sync(fn: () => Promise<void>): void {
+    fn().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn('[dataConnect] Firestore mirror failed (non-fatal):', err);
+    });
+  }
+
+  private scope(): { uid: string; data: UserData } | null {
+    if (!this.activeUid) return null;
+    if (!this.userData[this.activeUid]) {
+      this.userData[this.activeUid] = {
+        bookmarks: [],
+        itineraries: [],
+        reviews: [],
+        activity: [],
+        profile: { ...DEFAULT_PROFILE }
+      };
+    }
+    return { uid: this.activeUid, data: this.userData[this.activeUid] };
   }
 
   // Categories
@@ -247,23 +388,55 @@ class DataConnectService {
 
   // Reviews
   async getReviewsForPlace(placeId: string): Promise<Review[]> {
-    return this.reviews.filter(r => r.placeId === placeId);
+    // Collect seed reviews plus any current user's reviews for this place.
+    const seed = this.seedReviews.filter(r => r.placeId === placeId);
+    const allUserReviews = Object.values(this.userData).flatMap(u => u.reviews);
+    const userRev = allUserReviews.filter(r => r.placeId === placeId);
+    const combined = [...seed, ...userRev];
+
+    // Merge any Firestore reviews so cross-device reviews appear on this device too.
+    try {
+      const cloud = await firestoreService.getReviewsForPlace(placeId);
+      const seen = new Set(combined.map(r => r.id));
+      for (const r of cloud) {
+        if (!seen.has(r.id)) combined.push(r);
+      }
+    } catch {
+      // non-fatal: fall back to local reviews
+    }
+
+    return combined.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
+
+  async getCurrentUserReviews(): Promise<Review[]> {
+    const scoped = this.scope();
+    return scoped ? scoped.data.reviews : [];
   }
 
   async createReview(placeId: string, rating: number, comment: string): Promise<Review> {
+    const scoped = this.scope();
+    const user = this.activeUser();
+    if (!scoped || !user) throw new Error('You must be signed in to leave a review.');
+
     const newReview: Review = {
       id: `rev-${Date.now()}`,
       placeId,
-      userId: this.currentUser.id,
-      user: this.currentUser,
+      userId: scoped.uid,
+      user,
       rating,
       comment,
       createdAt: new Date().toISOString()
     };
-    this.reviews.unshift(newReview);
+    scoped.data.reviews.unshift(newReview);
 
-    // Recalculate rating
-    const placeReviews = this.reviews.filter(r => r.placeId === placeId);
+    const place = this.places.find(p => p.id === placeId);
+    if (place) {
+      this.recordActivity('review', { placeId, placeName: place.name, city: place.city, country: place.country, detail: comment });
+    }
+
+    // Recalculate rating (seed + all user reviews)
+    const allUserReviews = Object.values(this.userData).flatMap(u => u.reviews);
+    const placeReviews = [...this.seedReviews, ...allUserReviews].filter(r => r.placeId === placeId);
     const targetPlace = this.places.find(p => p.id === placeId);
     if (targetPlace) {
       const avg = placeReviews.reduce((sum, r) => sum + r.rating, 0) / placeReviews.length;
@@ -272,62 +445,100 @@ class DataConnectService {
     }
 
     this.persist();
+    const placeForReview = this.places.find(p => p.id === placeId);
+    this.sync(() => firestoreService.createReview(scoped.uid, placeId, rating, comment, placeForReview).then(() => undefined));
     return newReview;
   }
 
   // Bookmarks
   async getMyBookmarks(): Promise<Place[]> {
-    const bookmarkedIds = this.bookmarks.map(b => b.placeId);
+    const scoped = this.scope();
+    if (!scoped) return [];
+    const bookmarkedIds = scoped.data.bookmarks.map(b => b.placeId);
     return this.places.filter(p => bookmarkedIds.includes(p.id));
   }
 
   async isBookmarked(placeId: string): Promise<boolean> {
-    return this.bookmarks.some(b => b.placeId === placeId && b.userId === this.currentUser.id);
+    const scoped = this.scope();
+    if (!scoped) return false;
+    return scoped.data.bookmarks.some(b => b.placeId === placeId);
   }
 
   async toggleBookmark(placeId: string): Promise<boolean> {
-    const index = this.bookmarks.findIndex(b => b.placeId === placeId && b.userId === this.currentUser.id);
+    const scoped = this.scope();
+    if (!scoped) throw new Error('You must be signed in to save places.');
+    const index = scoped.data.bookmarks.findIndex(b => b.placeId === placeId);
     let isSaved = false;
     if (index >= 0) {
-      this.bookmarks.splice(index, 1);
+      scoped.data.bookmarks.splice(index, 1);
       isSaved = false;
     } else {
-      this.bookmarks.push({
+      scoped.data.bookmarks.push({
         id: `bm-${Date.now()}`,
-        userId: this.currentUser.id,
+        userId: scoped.uid,
         placeId,
         createdAt: new Date().toISOString(),
         place: this.places.find(p => p.id === placeId)
       });
       isSaved = true;
+      const p = this.places.find(x => x.id === placeId);
+      if (p) this.recordActivity('bookmark', { placeId, placeName: p.name, city: p.city, country: p.country, categoryId: p.categoryId });
     }
     this.persist();
+    this.sync(() =>
+      isSaved
+        ? firestoreService.setBookmark(scoped.uid, placeId)
+        : firestoreService.removeBookmark(scoped.uid, placeId)
+    );
     return isSaved;
   }
 
   // Saved Itineraries
   async getSavedItineraries(): Promise<Itinerary[]> {
-    return this.savedItineraries;
+    const scoped = this.scope();
+    return scoped ? scoped.data.itineraries : [];
   }
 
   async saveItinerary(itinerary: Itinerary): Promise<void> {
-    const existingIndex = this.savedItineraries.findIndex(i => i.id === itinerary.id);
+    const scoped = this.scope();
+    if (!scoped) throw new Error('You must be signed in to save trips.');
+    const existingIndex = scoped.data.itineraries.findIndex(i => i.id === itinerary.id);
     if (existingIndex >= 0) {
-      this.savedItineraries[existingIndex] = { ...itinerary, saved: true };
+      scoped.data.itineraries[existingIndex] = { ...itinerary, saved: true };
     } else {
-      this.savedItineraries.unshift({ ...itinerary, saved: true });
+      scoped.data.itineraries.unshift({ ...itinerary, saved: true });
+      this.recordActivity('itinerary', { placeName: itinerary.destination, city: itinerary.destination, country: itinerary.country, detail: `${itinerary.durationDays}-day trip` });
     }
     this.persist();
+    this.sync(() => firestoreService.saveItinerary(scoped.uid, itinerary));
   }
 
   async deleteItinerary(id: string): Promise<void> {
-    this.savedItineraries = this.savedItineraries.filter(i => i.id !== id);
+    const scoped = this.scope();
+    if (!scoped) return;
+    scoped.data.itineraries = scoped.data.itineraries.filter(i => i.id !== id);
     this.persist();
+    this.sync(() => firestoreService.deleteItinerary(scoped.uid, id));
   }
 
   // Profile
-  async getCurrentUser(): Promise<User> {
-    return this.currentUser;
+  async getCurrentUser(): Promise<User | null> {
+    return this.activeUser();
+  }
+
+  private activeUser(): User | null {
+    const scoped = this.scope();
+    if (!scoped) return null;
+    const p = this.userData[scoped.uid].profile;
+    return {
+      id: scoped.uid,
+      username: p.displayName || 'Traveler',
+      email: p.email || '',
+      provider: 'anonymous',
+      profile: {
+        ...p
+      }
+    };
   }
 }
 

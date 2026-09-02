@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, X, Calendar, DollarSign, Users, Heart, ArrowRight, Loader2, CheckCircle2, MapPin, Navigation } from 'lucide-react';
-import { AiPlannerParams, Itinerary, UserLocation } from '../types/travel';
+import { AiPlannerParams, Itinerary, UserLocation, User } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
 import { getCurrentLocation } from '../services/geolocation';
 
@@ -8,12 +8,16 @@ interface AiPlannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onItineraryGenerated: (itinerary: Itinerary) => void;
+  currentUser: User | null;
+  onRequireAuth: () => void;
 }
 
 export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
   isOpen,
   onClose,
-  onItineraryGenerated
+  onItineraryGenerated,
+  currentUser,
+  onRequireAuth
 }) => {
   const [destination, setDestination] = useState('');
   const [durationDays, setDurationDays] = useState(3);
@@ -62,6 +66,11 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      setErrorMsg('Please sign in first — your AI itinerary and preferences will be saved to your profile.');
+      onRequireAuth();
+      return;
+    }
     const dest = destination.trim();
     if (!dest && !userLocation) {
       setErrorMsg('Enter a destination city/region or tap "Use my location" so the AI knows where to plan from.');
@@ -80,7 +89,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
         location: userLocation || undefined,
         notes: notes.trim() || undefined
       };
-      const itinerary = await aiAgent.generateItinerary(params);
+      const itinerary = await aiAgent.generateItinerary(params, currentUser);
       onItineraryGenerated(itinerary);
       onClose();
     } catch (err) {

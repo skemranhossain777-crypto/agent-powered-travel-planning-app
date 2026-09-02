@@ -1,4 +1,14 @@
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
   "emulators": {
     "dataconnect": {
       "dataDir": "dataconnect/.dataconnect/pgliteData"
@@ -6,5 +16,16 @@
   },
   "dataconnect": {
     "source": "dataconnect"
+  },
+  "auth": {
+    "authorizedDomains": ["localhost"],
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "VoyageAI",
+        "supportEmail": "skemranhossain777.crypto@gmail.com"
+      }
+    }
   }
 }
