@@ -33,6 +33,8 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isExploring, setIsExploring] = useState(false);
   const [exploreHeading, setExploreHeading] = useState('Discover Top Destinations');
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [discoverContext, setDiscoverContext] = useState<{ query: string; loc: UserLocation | null } | null>(null);
 
   // How many AI-discovered places to request per search/feed. Raised well above
   // the old hard-coded 8 so results are fuller; limited by the model's output
@@ -114,6 +116,7 @@ export function App() {
             query = `top places to visit and best sights in and near ${loc.label}`;
             heading = `Places Near You`;
           }
+          setDiscoverContext({ query, loc });
 
           let aiPlaces = await aiAgent.discoverPlaces(query, loc, EXPLORE_COUNT, user);
           let h = heading;
@@ -165,6 +168,7 @@ export function App() {
 
   const discoverByCategory = async (catId: string, catName: string, loc: UserLocation | null) => {
     const spec = CATEGORY_DISCOVER[catId] || { query: `top ${catName} places`, heading: catName };
+    setDiscoverContext({ query: spec.query, loc });
     setIsExploring(true);
     try {
       const result = await Promise.race([
@@ -184,6 +188,33 @@ export function App() {
       addToast('info', `Couldn't reach live travel data — showing saved ${catName} places instead.`);
     } finally {
       setIsExploring(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    const ctx = discoverContext;
+    if (!ctx || isLoadingMore) return;
+    const shown = places.map((p) => p.name).filter(Boolean);
+    setIsLoadingMore(true);
+    try {
+      const more = await Promise.race([
+        aiAgent.discoverPlaces(ctx.query, ctx.loc, EXPLORE_COUNT, currentUser, shown),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
+      ]);
+      if (!more.length) {
+        addToast('info', 'That\'s everything we could find — no more places to show.');
+        setDiscoverContext(null);
+        return;
+      }
+      const seen = new Set(places.map((p) => `${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`));
+      const fresh = more.filter((p) => !seen.has(`${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`));
+      await enrichPlacesWithImages(fresh);
+      setPlaces((prev) => [...prev, ...fresh]);
+    } catch (err) {
+      console.error('[App] load more failed:', err);
+      addToast('info', `Couldn't load more right now. ${(err as Error)?.message || ''}`);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -374,6 +405,9 @@ export function App() {
               onSelectPlace={(place) => setSelectedPlace(place)}
               onOpenReviewModal={(place) => setReviewingPlace(place)}
               isLoading={isExploring}
+              isLoadingMore={isLoadingMore}
+              hasMore={!!discoverContext}
+              onLoadMore={handleLoadMore}
             />
           </>
         )}

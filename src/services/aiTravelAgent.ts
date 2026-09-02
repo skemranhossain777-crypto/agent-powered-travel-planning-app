@@ -480,14 +480,18 @@ async function runWithModelFallback(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-function buildDiscoverPrompt(query: string, location: UserLocation | null, count: number): string {
+function buildDiscoverPrompt(query: string, location: UserLocation | null, count: number, excludeNames: string[] = []): string {
   const scope = location
     ? `The traveler is currently near ${describeLocation(location)}. REQUIRE every place you return to be a real, existing place located NEAR this location — in the same city or its immediate surroundings. Do NOT list places that are far away (no other countries, no famous-but-unrelated landmarks elsewhere) unless the search explicitly names that distant place.`
     : 'The traveler has not shared their location; choose places from anywhere in the world that best match the request.';
+  const excludeLine = excludeNames.length
+    ? `These places have ALREADY been shown to the traveler. Do NOT return any of them again (exact name, city, and country): ${excludeNames.slice(0, 30).join('; ')}.`
+    : '';
   return [
     'You are a location-aware travel-discovery agent.',
     `Find ${count} real, specific, notable places that best match this search: "${query}".`,
     scope,
+    ...(excludeLine ? [excludeLine] : []),
     'Only include real, well-known places with confident details — famous landmarks, acclaimed restaurants, iconic hotels, distinctive neighborhoods, natural wonders, markets, and nightlife spots.',
     "Each place needs: exact name; city; country; a vivid 1-2 sentence description; 3-4 short tags; a realistic average rating between 3.8 and 5.0; a plausible review count; a price level that is exactly one of $, $$, $$$, $$$$; an approximate latitude/longitude; and a website URL if you know one.",
     "imageUrl: provide the direct address of a real photo of this exact place hosted on Wikipedia/Wikimedia Commons (upload.wikimedia.org) ONLY if you are genuinely confident it is that place's own photo. Otherwise leave imageUrl empty — it will be matched automatically.",
@@ -626,21 +630,30 @@ export class AiTravelAgentService {
    * query (e.g. "Paris rooftop restaurants" or "safari lodges in Kenya").
    * Fully generative — results come straight from Gemini, never from a cache.
    */
-  async discoverPlaces(query: string, location: UserLocation | null = null, count = 8, user?: User | null): Promise<Place[]> {
+  async discoverPlaces(query: string, location: UserLocation | null = null, count = 8, user?: User | null, excludeNames: string[] = []): Promise<Place[]> {
     // Reuse recent results for the same query+location instead of spending
-    // another free-tier Gemini request on every tap/reload.
-    const cached = discoverCache.get(query, location, count);
-    if (cached) {
-      return cached;
+    // another free-tier Gemini request on every tap/reload. Load-more requests
+    // (with exclusions) always hit the model so they return fresh, different
+    // places rather than the cached first page.
+    if (!excludeNames.length) {
+      const cached = discoverCache.get(query, location, count);
+      if (cached) {
+        return cached;
+      }
     }
+    const excluded = new Set(
+      (excludeNames || []).map((n) => n.trim().toLowerCase()).filter(Boolean)
+    );
     try {
       const text = await runWithModelFallback(
         (alias) => getDiscoverModel(alias),
         async (model) =>
-          (await model.generateContent(buildDiscoverPrompt(query, location, count))).response.text()
+          (await model.generateContent(buildDiscoverPrompt(query, location, count, excludeNames))).response.text()
       );
       const cats = await dataConnect.getCategories();
-      const places = mapDiscoveredPlaces(text, count, cats);
+      const places = mapDiscoveredPlaces(text, count, cats).filter(
+        (p) => !excluded.has(p.name.trim().toLowerCase())
+      );
       const enriched = await enrichPlacesWithImages(places);
       if (user) {
         places.slice(0, 2).forEach((p) => {
@@ -653,7 +666,9 @@ export class AiTravelAgentService {
       if (!result.length) {
         throw new Error('The model returned no usable places for that search.');
       }
-      discoverCache.set(query, location, count, result);
+      if (!excludeNames.length) {
+        discoverCache.set(query, location, count, result);
+      }
       return result;
     } catch (err) {
       console.error('[AiTravelAgent] Place discovery failed:', err);

@@ -16,6 +16,9 @@ interface PlaceExplorerProps {
   onSelectPlace: (place: Place) => void;
   onOpenReviewModal: (place: Place) => void;
   isLoading?: boolean;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
@@ -30,7 +33,10 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
   onToggleBookmark,
   onSelectPlace,
   onOpenReviewModal,
-  isLoading = false
+  isLoading = false,
+  isLoadingMore = false,
+  hasMore = false,
+  onLoadMore
 }) => {
   const getCategoryIcon = (id: string) => {
     switch (id) {
@@ -114,6 +120,7 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
           </button>
         </div>
       ) : (
+        <React.Fragment>
         <div className="places-grid">
           {places.map((place) => {
             const isBookmarked = bookmarkedPlaceIds.includes(place.id);
@@ -203,6 +210,20 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
             );
           })}
         </div>
+
+        {onLoadMore && hasMore && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
+            <button
+              type="button"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              className="btn-secondary"
+            >
+              {isLoadingMore ? 'Loading more…' : 'Load More Places'}
+            </button>
+          </div>
+        )}
+        </React.Fragment>
       )}
 
     </section>
