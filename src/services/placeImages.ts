@@ -17,7 +17,7 @@ function placeKey(name: string, city: string, country: string): string {
   return `${name.trim().toLowerCase()}|${city.trim().toLowerCase()}|${(country || '').trim().toLowerCase()}`;
 }
 
-async function fetchJson(url: string, timeoutMs = 8000): Promise<Record<string, any> | null> {
+async function fetchJson(url: string, timeoutMs = 5000): Promise<Record<string, any> | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -132,7 +132,7 @@ async function lookupWikipedia(
 ): Promise<string | null> {
   let best = '';
   let bestScore = 0;
-  for (const variant of nameVariants(name)) {
+  for (const variant of nameVariants(name).slice(0, 3)) {
     const query = `${variant} ${city} ${country}`.trim().slice(0, 120);
     const data = await fetchJson(
       `${WIKI_API}&gsrsearch=${encodeURIComponent(query)}` +
@@ -201,7 +201,7 @@ async function lookupCommons(
 ): Promise<string | null> {
   let best = '';
   let bestScore = 0;
-  for (const variant of nameVariants(name)) {
+  for (const variant of nameVariants(name).slice(0, 3)) {
     const query = `${variant} ${city} ${country}`.trim().slice(0, 160);
     const data = await fetchJson(`${COMMONS_API}&gsrsearch=${encodeURIComponent(query)}`);
     const pages = data?.query?.pages;

@@ -89,36 +89,55 @@ export function App() {
 
   const loadExploreFeed = async (user: User | null) => {
     setIsExploring(true);
+    const deadline = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timed out')), 15000)
+    );
     try {
-      let loc: UserLocation | null = null;
-      if (user) {
-        const rawLoc = await getCurrentLocation();
-        if (rawLoc) loc = await reverseGeocode(rawLoc);
-      }
+      const result = await Promise.race([
+        (async () => {
+          let loc: UserLocation | null = null;
+          if (user) {
+            const rawLoc = await getCurrentLocation();
+            if (rawLoc) loc = await reverseGeocode(rawLoc);
+          }
 
-      let query = 'top worldwide travel destinations and iconic sights';
-      let heading = 'Discover Top Destinations';
-      if (loc && loc.label) {
-        query = `top places to visit and best sights in and near ${loc.label}`;
-        heading = `Places Near You`;
-      }
+          let query = 'top worldwide travel destinations and iconic sights';
+          let heading = 'Discover Top Destinations';
+          if (loc && loc.label) {
+            query = `top places to visit and best sights in and near ${loc.label}`;
+            heading = `Places Near You`;
+          }
 
-      const aiPlaces = await aiAgent.discoverPlaces(query, loc, 8, user);
-      let result: Place[] = aiPlaces;
-      if (!result.length && loc) {
-        heading = 'Discover Top Destinations';
-        result = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, 8, user);
+          let aiPlaces = await aiAgent.discoverPlaces(query, loc, 8, user);
+          let h = heading;
+          if (!aiPlaces.length && loc) {
+            h = 'Discover Top Destinations';
+            aiPlaces = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, 8, user);
+          }
+          if (!aiPlaces.length) {
+            throw new Error('AI returned no places');
+          }
+          return { places: aiPlaces, heading: h };
+        })(),
+        deadline
+      ]);
+
+      if (result.places.length) {
+        setPlaces(result.places);
+        setExploreHeading(result.heading);
+      } else {
+        throw new Error('AI returned no places');
       }
-      await enrichPlacesWithImages(result);
-      setExploreHeading(heading);
-      setPlaces(result);
-      if (!result.length) {
-        setPlaces(await dataConnect.getPlaces('all', ''));
-        setExploreHeading('Discover Top Destinations');
+    } catch {
+      // Never leave the explore feed empty/hanging — fall back to the
+      // curated seed places and a clear heading.
+      try {
+        const fallback = await dataConnect.getPlaces('all', '');
+        await enrichPlacesWithImages(fallback);
+        setPlaces(fallback);
+      } catch {
+        setPlaces([]);
       }
-    } catch (err) {
-      console.error('[App] initial Explore feed failed:', err);
-      setPlaces(await dataConnect.getPlaces('all', ''));
       setExploreHeading('Discover Top Destinations');
     } finally {
       setIsExploring(false);
