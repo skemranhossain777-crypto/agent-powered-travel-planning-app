@@ -34,6 +34,11 @@ export function App() {
   const [isExploring, setIsExploring] = useState(false);
   const [exploreHeading, setExploreHeading] = useState('Discover Top Destinations');
 
+  // How many AI-discovered places to request per search/feed. Raised well above
+  // the old hard-coded 8 so results are fuller; limited by the model's output
+  // budget rather than an arbitrary client-side cap.
+  const EXPLORE_COUNT = 20;
+
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [reviewingPlace, setReviewingPlace] = useState<Place | null>(null);
   const [activeItinerary, setActiveItinerary] = useState<Itinerary | null>(null);
@@ -110,11 +115,11 @@ export function App() {
             heading = `Places Near You`;
           }
 
-          let aiPlaces = await aiAgent.discoverPlaces(query, loc, 8, user);
+          let aiPlaces = await aiAgent.discoverPlaces(query, loc, EXPLORE_COUNT, user);
           let h = heading;
           if (!aiPlaces.length && loc) {
             h = 'Discover Top Destinations';
-            aiPlaces = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, 8, user);
+            aiPlaces = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, EXPLORE_COUNT, user);
           }
           if (!aiPlaces.length) {
             throw new Error('AI returned no places');
@@ -163,7 +168,7 @@ export function App() {
     setIsExploring(true);
     try {
       const result = await Promise.race([
-        aiAgent.discoverPlaces(spec.query, loc, 8, currentUser),
+        aiAgent.discoverPlaces(spec.query, loc, EXPLORE_COUNT, currentUser),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
       ]);
       if (!result.length) throw new Error('AI returned no places');
@@ -211,7 +216,7 @@ export function App() {
     // even when nothing in the local seed data does.
     setIsExploring(true);
     try {
-      const aiPlaces = await aiAgent.discoverPlaces(trimmed, null, 8, currentUser);
+      const aiPlaces = await aiAgent.discoverPlaces(trimmed, null, EXPLORE_COUNT, currentUser);
       if (!aiPlaces.length) {
         setPlaces(local);
         addToast('info', `AI couldn't find verified places for "${trimmed}". Try a broader keyword.`);

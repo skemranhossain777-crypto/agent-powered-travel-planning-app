@@ -150,7 +150,7 @@ function getDiscoverModel(alias: string): GenerativeModel {
         temperature: 0.8,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
         responseSchema: PLACE_SCHEMA
       }
