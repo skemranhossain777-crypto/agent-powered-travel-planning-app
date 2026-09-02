@@ -29,7 +29,7 @@ export const Hero: React.FC<HeroProps> = ({ onSearch, onOpenAiPlanner }) => {
         {/* Badge */}
         <div className="hero-badge hero-anim-1">
           <Zap className="w-3.5 h-3.5" />
-          <span>Firebase Data Connect & Gemini AI Engine Active</span>
+          <span>Plan anything, anywhere, instantly</span>
         </div>
 
         {/* Title */}

@@ -408,7 +408,6 @@ export function App() {
           <div className="app-footer-brand">
             <Compass className="w-4 h-4" />
             <span>VoyageAI</span>
-            <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>• Powered by Firebase Data Connect & Gemini AI</span>
           </div>
 
           <p>© 2026 VoyageAI. All rights reserved.</p>
