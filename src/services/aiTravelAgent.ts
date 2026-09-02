@@ -11,6 +11,7 @@ import {
 } from '../types/travel';
 import { describeLocation } from './geolocation';
 import { dataConnect } from './dataConnectService';
+import { enrichPlacesWithImages } from './placeImages';
 
 /**
  * Gemini text model aliases to try in order. gemini-3.6-flash is the current
@@ -404,6 +405,7 @@ function buildDiscoverPrompt(query: string, location: UserLocation | null, count
     originHint,
     'Only include real, well-known places with confident details — famous landmarks, acclaimed restaurants, iconic hotels, distinctive neighborhoods, natural wonders, markets, and nightlife spots.',
     'Each place needs: exact name; city; country; a vivid 1-2 sentence description; 3-4 short tags; a realistic average rating between 3.8 and 5.0; a plausible review count; a price level that is exactly one of $, $$, $$$, $$$$; an approximate latitude/longitude; and a website URL if you know one.',
+    'Use the place\'s common English name exactly as it appears in travel guides and Wikipedia, alongside its real city — the picture is matched by looking up that name and city in a public encyclopedia, so the name must be precise and searchable.',
     'Set category to exactly one of: Restaurant, Historical, Nature, Nightlife, Shopping, Hotel.',
     `Return only valid JSON: an object with a "places" array of 1 to ${count} items using the requested schema.`,
     'Never fabricate a place. If you cannot confidently identify enough real matches, return fewer higher-confidence ones.'
@@ -503,7 +505,15 @@ export class AiTravelAgentService {
           (await model.generateContent(buildDiscoverPrompt(query, location, count))).response.text()
       );
       const cats = await dataConnect.getCategories();
-      return mapDiscoveredPlaces(text, count, cats);
+      const places = mapDiscoveredPlaces(text, count, cats);
+      const enriched = await enrichPlacesWithImages(places);
+      if (enriched.length) {
+        return enriched;
+      }
+      if (places.length) {
+        return places;
+      }
+      throw new Error('The model returned no usable places for that search.');
     } catch (err) {
       console.error('[AiTravelAgent] Place discovery failed:', err);
       const detail = err instanceof Error ? err.message : String(err);
