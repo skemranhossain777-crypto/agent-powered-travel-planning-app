@@ -117,6 +117,19 @@ export interface UserActivityEvent {
   createdAt: string;
 }
 
+export interface TransportOption {
+  mode: string;
+  route: string;
+  estimatedCost: string;
+}
+
+export interface HotelOption {
+  name: string;
+  area: string;
+  ratePerNight: string;
+  estimatedCost: string;
+}
+
 export interface DayPlan {
   dayNumber: number;
   title: string;
@@ -135,6 +148,9 @@ export interface Itinerary {
   summary: string;
   estimatedTotalCost: string;
   bestTimeToVisit: string;
+  transport?: TransportOption[];
+  hotels?: HotelOption[];
+  sightseeingCost?: string;
   dayPlans: DayPlan[];
   createdAt: string;
   saved?: boolean;

@@ -127,8 +127,8 @@ function getConciergeModel(location: UserLocation | null, alias: string, user?: 
       systemInstruction: [
         `You are "AI Travel Concierge", a friendly, upbeat travel expert inside the VoyageAI app.`,
         `You help users discover destinations worldwide, recommend hidden gems, packing lists, optimal travel seasons, budget breakdowns, and create real, specific travel advice.`,
-        `Be concise, structured (use short bullet lists), and practical. If you are unsure about a specific current fact (opening hours, prices, seasons), give reasonable guidance and suggest verifying it.`,
-        `Never invent dangerous or misleading safety info. Keep answers under ~200 words and use simple markdown (bold headings and dashes) that renders well in a chat.`,
+`Be warm, generous, and genuinely helpful, not terse or rushed. Give complete, specific, practical answers. Only ask one clarifying question if a detail is genuinely needed; otherwise answer fully using the user's profile. If you are unsure about a specific current fact (opening hours, prices, seasons), give reasonable guidance and suggest verifying it.`,
+`Never invent dangerous or misleading safety info. Provide a rich but well-organized answer using clean GitHub-flavored markdown so it renders beautifully in the chat — aim for detail and value (typically 250–450 words for a real plan/answer): use bold headings for sections, hyphen or numbered bullet lists for options/destinations, and pipe tables whenever comparing data (e.g. destination features, budget, pros/cons, costs, seasons). Structure replace-then-condense: never just one-liners; flesh out options, why they fit, and practical next steps.`,
         conciergeLocationContext(location),
         buildUserContext(user || null)
       ].join('\n')
@@ -171,6 +171,26 @@ const ITINERARY_SCHEMA = Schema.object({
     summary: Schema.string(),
     estimatedTotalCost: Schema.string(),
     bestTimeToVisit: Schema.string(),
+    sightseeingCost: Schema.string(),
+    transport: Schema.array({
+      items: Schema.object({
+        properties: {
+          mode: Schema.string(),
+          route: Schema.string(),
+          estimatedCost: Schema.string()
+        }
+      })
+    }),
+    hotels: Schema.array({
+      items: Schema.object({
+        properties: {
+          name: Schema.string(),
+          area: Schema.string(),
+          ratePerNight: Schema.string(),
+          estimatedCost: Schema.string()
+        }
+      })
+    }),
     dayPlans: Schema.array({
       items: Schema.object({
         properties: {
@@ -279,6 +299,18 @@ interface RawItinerary {
   summary?: string;
   estimatedTotalCost?: string;
   bestTimeToVisit?: string;
+  sightseeingCost?: string;
+  transport?: Array<{
+    mode?: string;
+    route?: string;
+    estimatedCost?: string;
+  }>;
+  hotels?: Array<{
+    name?: string;
+    area?: string;
+    ratePerNight?: string;
+    estimatedCost?: string;
+  }>;
   dayPlans?: Array<{
     dayNumber?: number;
     title?: string;
@@ -337,6 +369,18 @@ function buildItinerary(raw: RawItinerary, params: AiPlannerParams): Itinerary {
       `A personalized ${durationDays}-day ${params.travelStyle.toLowerCase()} itinerary built around your interests.`,
     estimatedTotalCost: raw.estimatedTotalCost || 'Varies by season',
     bestTimeToVisit: raw.bestTimeToVisit || 'Check local climate closer to your travel dates',
+    sightseeingCost: raw.sightseeingCost || '',
+    transport: (raw.transport || []).map((t) => ({
+      mode: t.mode || 'Transport',
+      route: t.route || '',
+      estimatedCost: t.estimatedCost || 'Varies'
+    })),
+    hotels: (raw.hotels || []).map((h) => ({
+      name: h.name || 'Accommodation',
+      area: h.area || '',
+      ratePerNight: h.ratePerNight || '',
+      estimatedCost: h.estimatedCost || 'Varies'
+    })),
     dayPlans,
     createdAt: new Date().toISOString()
   };
@@ -378,6 +422,12 @@ function buildItineraryPrompt(params: AiPlannerParams, user?: User | null): stri
     '',
     'Make every activity concrete and authentic: real neighborhoods, real landmark names, real local cuisine, and realistic prices in USD.',
     'Research-aware guidance: mention obvious practical considerations (e.g., cluster activities by area, avoid unrealistic transit hops, suggest the best transport between zones).',
+    '',
+    'Include transport and stay every time, with realistic prices:',
+    '- `transport`: ALL realistic ways to get from the traveler\'s home base to the destination and around — e.g. flight (with a realistic one-way price), train, bus, rental car, and local metro/taxi within the destination. Give each option\'s `mode`, `route` (e.g. "Dhaka → Bali", "local metro within inner city"), and `estimatedCost` in USD.',
+    '- `hotels`: 2–3 specific, realistic accommodation options matched to the traveler\'s budget level, with `name`, `area`/neighborhood, `ratePerNight` (USD per night), and `estimatedCost` (USD total for the stay).',
+    '- `sightseeingCost`: a realistic per-destination estimate (USD) of entry fees / sightseeing for the whole trip.',
+    'Base every choice on this specific traveler\'s profile above (name, home city, interests, travel style, budget) and call them out where it matters — never answer as a generic anonymous plan.',
     `Return exactly ${params.durationDays} day plan(s).`,
     'Use `bestTimeToVisit` for the ideal months for that destination, and `estimatedTotalCost` as a realistic overall spend in USD.',
     'Return only valid JSON matching the requested schema.'

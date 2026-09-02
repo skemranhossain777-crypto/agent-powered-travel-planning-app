@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChatMessage, UserLocation, User } from '../types/travel';
 import { aiAgent } from '../services/aiTravelAgent';
 import { getCurrentLocation, describeLocation } from '../services/geolocation';
@@ -141,7 +143,13 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({ isOpen, onClose, cur
               className={`chat-row ${msg.sender === 'user' ? 'user' : ''}`}
             >
               <div className={`chat-bubble ${msg.sender === 'user' ? 'user' : 'ai'}`}>
-                {msg.text}
+                {msg.sender === 'user' ? msg.text : (
+                  <div className="chat-md">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.text}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
 
               <span className="chat-meta">{msg.timestamp}</span>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Itinerary } from '../types/travel';
-import { Sparkles, Clock, MapPin, BookmarkCheck, Download, Trash2, CheckCircle } from 'lucide-react';
+import { Sparkles, Clock, MapPin, BookmarkCheck, Download, Trash2, CheckCircle, Plane, BedDouble, Ticket } from 'lucide-react';
 
 interface ItineraryViewProps {
   itinerary: Itinerary;
@@ -29,6 +29,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     let text = `✈️ VOYAGE AI ITINERARY: ${itinerary.destination.toUpperCase()} (${itinerary.durationDays} DAYS)\n`;
     text += `Summary: ${itinerary.summary}\n`;
     text += `Estimated Cost: ${itinerary.estimatedTotalCost}\n\n`;
+
+    if (itinerary.sightseeingCost) {
+      text += `Sightseeing / Entry Fees: ${itinerary.sightseeingCost}\n\n`;
+    }
+    if (itinerary.transport?.length) {
+      text += `--- TRANSPORT ---\n`;
+      itinerary.transport.forEach((t) => {
+        text += `• ${t.mode} (${t.route}): ${t.estimatedCost}\n`;
+      });
+      text += `\n`;
+    }
+    if (itinerary.hotels?.length) {
+      text += `--- ACCOMMODATION ---\n`;
+      itinerary.hotels.forEach((h) => {
+        text += `• ${h.name} (${h.area}) — ${h.ratePerNight}/night — total ${h.estimatedCost}\n`;
+      });
+      text += `\n`;
+    }
 
     itinerary.dayPlans.forEach((day) => {
       text += `--- DAY ${day.dayNumber}: ${day.title} ---\n`;
@@ -139,6 +157,65 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
 
       </div>
+
+      {/* Transport + Stay + Sightseeing */}
+      {(itinerary.transport?.length || itinerary.hotels?.length || itinerary.sightseeingCost) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem' }}>
+
+          {itinerary.transport && itinerary.transport.length > 0 && (
+            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Plane className="w-4 h-4" style={{ color: '#00f2fe' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#00f2fe' }}>Transport & Ways to Get There</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {itinerary.transport?.map((t, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.7rem 0.9rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{t.mode}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.route}</div>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap' }}>{t.estimatedCost}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {itinerary.hotels && itinerary.hotels.length > 0 && (
+            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <BedDouble className="w-4 h-4" style={{ color: '#d8b4fe' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#d8b4fe' }}>Where to Stay</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {itinerary.hotels?.map((h, i) => (
+                  <div key={i} style={{ padding: '0.75rem 0.9rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{h.name}</div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap' }}>{h.estimatedCost}</span>
+                    </div>
+                    {h.area && <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>{h.area}</div>}
+                    {h.ratePerNight && <div style={{ fontSize: '0.75rem', color: '#00f2fe', marginTop: '0.2rem' }}>{h.ratePerNight} / night</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {itinerary.sightseeingCost && (
+            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Ticket className="w-4 h-4" style={{ color: '#fbbf24' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24' }}>Sightseeing / Entry Fees</span>
+              </div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>{itinerary.sightseeingCost}</div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.4rem' }}>Estimated total for admissions across your trip.</div>
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* Day Selector Buttons */}
       <div className="category-scroll-row" style={{ marginBottom: '1.5rem' }}>
