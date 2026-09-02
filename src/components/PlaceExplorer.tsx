@@ -4,6 +4,7 @@ import { Star, MapPin, Bookmark, ExternalLink, MessageSquare, Utensils, Landmark
 import { PlaceImage } from './PlaceImage';
 
 interface PlaceExplorerProps {
+  heading?: string;
   places: Place[];
   categories: Category[];
   selectedCategory: string;
@@ -18,6 +19,7 @@ interface PlaceExplorerProps {
 }
 
 export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
+  heading = 'Discover Top Destinations',
   places,
   categories,
   selectedCategory,
@@ -48,7 +50,7 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
       {/* Category Filter Bar */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div className="section-heading">
-          <h2 className="section-title">Discover Top Destinations</h2>
+          <h2 className="section-title">{heading}</h2>
           <span className="section-count">{places.length} Places Available</span>
         </div>
 

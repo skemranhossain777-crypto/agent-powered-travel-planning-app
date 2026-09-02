@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Place, Category, User, Itinerary, UserActivityEvent } from './types/travel';
+import { Place, Category, User, Itinerary, UserActivityEvent, UserLocation } from './types/travel';
 import { dataConnect } from './services/dataConnectService';
 import { aiAgent } from './services/aiTravelAgent';
 import { authService } from './services/authService';
+import { getCurrentLocation, reverseGeocode } from './services/geolocation';
 import { enrichPlacesWithImages } from './services/placeImages';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -31,6 +32,7 @@ export function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isExploring, setIsExploring] = useState(false);
+  const [exploreHeading, setExploreHeading] = useState('Discover Top Destinations');
 
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [reviewingPlace, setReviewingPlace] = useState<Place | null>(null);
@@ -47,12 +49,15 @@ export function App() {
       setCurrentUser(user);
       if (user) {
         setActivities(dataConnect.getActivity(user.id));
+        if (!searchQuery) loadExploreFeed(user);
       } else {
         setActivities([]);
         setActiveTab('explore');
+        if (places.length === 0) loadExploreFeed(null);
       }
     });
     return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load initial data
@@ -60,7 +65,7 @@ export function App() {
     const loadData = async () => {
       const cats = await dataConnect.getCategories();
       setCategories(cats);
-      fetchPlaces('all', '');
+      await loadExploreFeed(null);
     };
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,6 +86,44 @@ export function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  const loadExploreFeed = async (user: User | null) => {
+    setIsExploring(true);
+    try {
+      let loc: UserLocation | null = null;
+      if (user) {
+        const rawLoc = await getCurrentLocation();
+        if (rawLoc) loc = await reverseGeocode(rawLoc);
+      }
+
+      let query = 'top worldwide travel destinations and iconic sights';
+      let heading = 'Discover Top Destinations';
+      if (loc && loc.label) {
+        query = `top places to visit and best sights in and near ${loc.label}`;
+        heading = `Places Near You`;
+      }
+
+      const aiPlaces = await aiAgent.discoverPlaces(query, loc, 8, user);
+      let result: Place[] = aiPlaces;
+      if (!result.length && loc) {
+        heading = 'Discover Top Destinations';
+        result = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, 8, user);
+      }
+      await enrichPlacesWithImages(result);
+      setExploreHeading(heading);
+      setPlaces(result);
+      if (!result.length) {
+        setPlaces(await dataConnect.getPlaces('all', ''));
+        setExploreHeading('Discover Top Destinations');
+      }
+    } catch (err) {
+      console.error('[App] initial Explore feed failed:', err);
+      setPlaces(await dataConnect.getPlaces('all', ''));
+      setExploreHeading('Discover Top Destinations');
+    } finally {
+      setIsExploring(false);
+    }
+  };
 
   const fetchPlaces = async (catId: string, query: string) => {
     const trimmed = (query || '').trim();
@@ -243,6 +286,7 @@ export function App() {
             />
 
             <PlaceExplorer
+              heading={exploreHeading}
               places={places}
               categories={categories}
               selectedCategory={selectedCategory}
