@@ -95,11 +95,13 @@ export function App() {
     try {
       const result = await Promise.race([
         (async () => {
+          // Always try the user's real location first (logged in or not) so the
+          // default feed is anchored to where they actually are — e.g. "Near
+          // Dhaka" — instead of generic worldwide picks. Browser prompts on
+          // first use; if denied, we fall back to worldwide.
           let loc: UserLocation | null = null;
-          if (user) {
-            const rawLoc = await getCurrentLocation();
-            if (rawLoc) loc = await reverseGeocode(rawLoc);
-          }
+          const rawLoc = await getCurrentLocation().catch(() => null);
+          if (rawLoc) loc = await reverseGeocode(rawLoc).catch(() => null);
 
           let query = 'top worldwide travel destinations and iconic sights';
           let heading = 'Discover Top Destinations';
