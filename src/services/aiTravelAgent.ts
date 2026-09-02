@@ -574,6 +574,50 @@ function mapDiscoveredPlaces(text: string, count: number, categories: Category[]
   return places;
 }
 
+// Small client-side cache for AI place discovery. Re-using a recent result
+// avoids burning a free-tier Gemini request on every category tap or Explore
+// reload. Fresh entries return instantly; stale ones fall through to Gemini.
+const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+const discoverCache = {
+  memory: new Map<string, { expires: number; places: Place[] }>(),
+  key(query: string, location: UserLocation | null, count: number): string {
+    return `${query}::${location?.label || 'anywhere'}::${count}`;
+  },
+  get(query: string, location: UserLocation | null, count: number): Place[] | null {
+    const k = this.key(query, location, count);
+    const hit = this.memory.get(k);
+    if (hit && hit.expires > Date.now()) {
+      return hit.places;
+    }
+    try {
+      const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('reveao_discover_' + k) : null;
+      if (raw) {
+        const saved = JSON.parse(raw) as { expires: number; places: Place[] };
+        if (saved.expires > Date.now()) {
+          this.memory.set(k, saved);
+          return saved.places;
+        }
+      }
+    } catch {
+      // cache is best-effort
+    }
+    return null;
+  },
+  set(query: string, location: UserLocation | null, count: number, places: Place[]): void {
+    const k = this.key(query, location, count);
+    const entry = { expires: Date.now() + DISCOVER_CACHE_TTL_MS, places };
+    this.memory.set(k, entry);
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('reveao_discover_' + k, JSON.stringify(entry));
+      }
+    } catch {
+      // best-effort
+    }
+  }
+};
+
 export class AiTravelAgentService {
   /**
    * Discovers real, specific places worldwide that match a free-form keyword
@@ -581,6 +625,12 @@ export class AiTravelAgentService {
    * Fully generative — results come straight from Gemini, never from a cache.
    */
   async discoverPlaces(query: string, location: UserLocation | null = null, count = 8, user?: User | null): Promise<Place[]> {
+    // Reuse recent results for the same query+location instead of spending
+    // another free-tier Gemini request on every tap/reload.
+    const cached = discoverCache.get(query, location, count);
+    if (cached) {
+      return cached;
+    }
     try {
       const text = await runWithModelFallback(
         (alias) => getDiscoverModel(alias),
@@ -597,21 +647,20 @@ export class AiTravelAgentService {
           }, user.id);
         });
       }
-      if (enriched.length) {
-        return enriched;
+      const result = enriched.length ? enriched : places;
+      if (!result.length) {
+        throw new Error('The model returned no usable places for that search.');
       }
-      if (places.length) {
-        return places;
-      }
-      throw new Error('The model returned no usable places for that search.');
+      discoverCache.set(query, location, count, result);
+      return result;
     } catch (err) {
       console.error('[AiTravelAgent] Place discovery failed:', err);
       const detail = err instanceof Error ? err.message : String(err);
-      throw new Error(
-        `AI couldn't discover places for that search right now. ${detail} ` +
-          `This is usually temporary — the Gemini model may be busy (high demand) or the ` +
-          `free-tier request limit for the day may be exhausted. Wait a moment and retry.`
-      );
+      const isQuota = /429|quota|rate limit|exhausted|RESOURCE_EXHAUSTED/i.test(detail);
+      const hint = isQuota
+        ? `You've hit the free-tier Gemini limit for today. It resets automatically around midnight UTC — retry a bit later, or revisit a category you already saw (those are cached and won't hit the limit).`
+        : `This is usually temporary — the Gemini model may be busy (high demand) or the free-tier request limit for the day may be exhausted. Wait a moment and retry.`;
+      throw new Error(`AI couldn't discover places for that search right now. ${hint}`);
     }
   }
 
