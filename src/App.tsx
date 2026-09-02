@@ -155,8 +155,8 @@ export function App() {
   const bookmarkedIds = bookmarkedPlaces.map(p => p.id);
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-white flex flex-col font-body">
-      
+    <div className="app-shell">
+
       {/* Global Navigation Bar */}
       <Navbar
         activeTab={activeTab}
@@ -169,7 +169,7 @@ export function App() {
       />
 
       {/* Main View Router */}
-      <main className="flex-1 pb-16">
+      <main className="main-content">
         {activeTab === 'explore' && (
           <>
             <Hero
@@ -216,21 +216,24 @@ export function App() {
               isSaved={savedItineraries.some(i => i.id === activeItinerary.id)}
             />
           ) : (
-            <div className="max-w-4xl mx-auto px-4 py-20 text-center animate-fade-in">
-              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-cyan-400 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-cyan-500/20">
-                <Sparkles className="w-8 h-8 text-slate-950" />
+            <div className="section-container">
+              <div className="state-panel">
+                <div className="state-panel-icon">
+                  <Sparkles className="w-7 h-7" />
+                </div>
+                <h3>No Active AI Trip Yet</h3>
+                <p>
+                  Let our autonomous AI travel agent generate a personalized multi-day itinerary for any destination worldwide.
+                </p>
+                <button
+                  onClick={() => setIsAiPlannerOpen(true)}
+                  className="btn-primary py-3.5 px-8 text-base font-extrabold"
+                  style={{ padding: '0.9rem 2rem', fontSize: '1rem' }}
+                >
+                  <Sparkles className="w-5 h-5 text-slate-950" />
+                  Launch AI Planner Now
+                </button>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">No Active AI Trip Yet</h2>
-              <p className="text-slate-400 text-sm max-w-md mx-auto mb-8">
-                Let our autonomous AI travel agent generate a personalized multi-day itinerary for any destination worldwide.
-              </p>
-              <button
-                onClick={() => setIsAiPlannerOpen(true)}
-                className="btn-primary py-3.5 px-8 text-base font-extrabold"
-              >
-                <Sparkles className="w-5 h-5 text-slate-950" />
-                Launch AI Planner Now
-              </button>
             </div>
           )
         )}
@@ -272,12 +275,12 @@ export function App() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-[rgba(255,255,255,0.08)] py-8 px-4 text-center text-xs text-slate-500 bg-[#060911]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Compass className="w-4 h-4 text-cyan-400" />
-            <span className="font-bold text-slate-300">VoyageAI</span>
-            <span>• Powered by Firebase Data Connect & Gemini AI</span>
+      <footer className="app-footer">
+        <div className="app-footer-inner">
+          <div className="app-footer-brand">
+            <Compass className="w-4 h-4" />
+            <span>VoyageAI</span>
+            <span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>• Powered by Firebase Data Connect & Gemini AI</span>
           </div>
 
           <p>© 2026 VoyageAI. All rights reserved.</p>

@@ -43,19 +43,15 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
 
   return (
     <section className="section-container">
-      
+
       {/* Category Filter Bar */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>
-            Discover Top Destinations
-          </h2>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
-            {places.length} Places Available
-          </span>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="section-heading">
+          <h2 className="section-title">Discover Top Destinations</h2>
+          <span className="section-count">{places.length} Places Available</span>
         </div>
 
-        <div className="category-scroll-row">
+        <div className="category-scroll-row no-scrollbar">
           <button
             type="button"
             onClick={() => onSelectCategory('all')}
@@ -81,20 +77,27 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
         </div>
       </div>
 
-      {/* Grid of Places */}
+      {/* AI Radar Loading State */}
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
-          <div className="ai-spinner" />
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>AI is discovering places worldwide…</h3>
-          <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '420px', margin: '0 auto' }}>
-            Searching for real destinations that match your keyword across the globe.
+        <div className="state-panel">
+          <div className="ai-radar">
+            <div className="ai-radar-ring" />
+            <div className="ai-radar-pulse" />
+            <div className="ai-radar-core" />
+          </div>
+          <h3 className="ai-shimmer">AI is scanning the globe…</h3>
+          <p>
+            Discovering verified real-world places that match your keyword across every country.
           </p>
+          <div className="loading-bar" style={{ maxWidth: '220px', margin: '0 auto' }} />
         </div>
       ) : places.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
-          <Search className="w-12 h-12 text-slate-600" style={{ margin: '0 auto 1rem' }} />
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>No Destinations Found</h3>
-          <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '400px', margin: '0 auto 1.5rem' }}>
+        <div className="state-panel">
+          <div className="state-panel-icon">
+            <Search className="w-7 h-7" />
+          </div>
+          <h3>No Destinations Found</h3>
+          <p>
             {searchQuery
               ? "We couldn't discover any places for that keyword right now. Try a broader search."
               : "We couldn't find any places matching your current filters. Try clearing your filters."}
@@ -113,16 +116,15 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
             const isBookmarked = bookmarkedPlaceIds.includes(place.id);
             return (
               <div key={place.id} className="place-card">
-                
+
                 {/* Image Wrap */}
                 <div className="place-card-image-wrap">
                   <img src={place.imageUrl} alt={place.name} className="place-card-img" />
                   <div className="place-card-overlay" />
 
-                  {/* Location & Bookmark Badges */}
-                  <div style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', right: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ padding: '0.3rem 0.75rem', borderRadius: '9999px', background: 'rgba(4,7,14,0.75)', border: '1px solid rgba(255,255,255,0.12)', color: '#00f2fe', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <MapPin className="w-3 h-3 text-cyan-400" />
+                  <div className="card-top-row">
+                    <span className="card-location">
+                      <MapPin className="w-3 h-3" />
                       {place.city}, {place.country}
                     </span>
 
@@ -132,31 +134,21 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
                         e.stopPropagation();
                         onToggleBookmark(place.id);
                       }}
-                      style={{
-                        padding: '0.45rem',
-                        borderRadius: '50%',
-                        border: isBookmarked ? 'none' : '1px solid rgba(255,255,255,0.2)',
-                        background: isBookmarked ? '#00f2fe' : 'rgba(4,7,14,0.7)',
-                        color: isBookmarked ? '#040812' : '#fff',
-                        cursor: 'pointer'
-                      }}
+                      className={`bookmark-btn ${isBookmarked ? 'saved' : ''}`}
                       title={isBookmarked ? 'Remove Bookmark' : 'Save Place'}
                     >
-                      <Bookmark className="w-4 h-4 fill-current" />
+                      <Bookmark className="fill-current" />
                     </button>
                   </div>
 
-                  {/* Rating & Price */}
-                  <div style={{ position: 'absolute', bottom: '0.75rem', left: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                    <span style={{ padding: '0.2rem 0.65rem', borderRadius: '9999px', background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#6ee7b7', fontSize: '0.75rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Star className="w-3.5 h-3.5 fill-emerald-400" />
+                  <div className="card-bottom-row">
+                    <span className="card-badge rating">
+                      <Star className="w-3.5 h-3.5 fill-current" />
                       {place.averageRating} ({place.reviewCount})
                     </span>
 
                     {place.priceLevel && (
-                      <span style={{ padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fcd34d', fontSize: '0.75rem', fontWeight: 800 }}>
-                        {place.priceLevel}
-                      </span>
+                      <span className="card-badge price">{place.priceLevel}</span>
                     )}
                   </div>
                 </div>
@@ -171,14 +163,10 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
                       {place.description}
                     </p>
 
-                    {/* Tags */}
                     {place.tags && place.tags.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1rem' }}>
+                      <div className="tag-row">
                         {place.tags.slice(0, 3).map((tag, idx) => (
-                          <span
-                            key={idx}
-                            style={{ padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: '0.7rem', fontWeight: 500 }}
-                          >
+                          <span key={idx} className="tag-pill">
                             #{tag}
                           </span>
                         ))}
@@ -186,12 +174,11 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
                     )}
                   </div>
 
-                  {/* Actions Footer */}
-                  <div style={{ paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="card-footer">
                     <button
                       type="button"
                       onClick={() => onSelectPlace(place)}
-                      style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00f2fe', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      className="text-link"
                     >
                       <span>View Details</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -200,9 +187,9 @@ export const PlaceExplorer: React.FC<PlaceExplorerProps> = ({
                     <button
                       type="button"
                       onClick={() => onOpenReviewModal(place)}
-                      style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      className="text-link subtle"
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                      <MessageSquare className="w-3.5 h-3.5" />
                       <span>Review</span>
                     </button>
                   </div>

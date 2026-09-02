@@ -50,17 +50,17 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
   return (
     <div className="section-container animate-fade-in">
-      
+
       {/* Header Banner */}
-      <div style={{ padding: '2rem', borderRadius: '24px', background: 'linear-gradient(135deg, rgba(112,0,255,0.2), rgba(0,242,254,0.1), rgba(15,23,42,0.9))', border: '1px solid rgba(255,255,255,0.12)', marginBottom: '2rem' }}>
-        
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="section-banner">
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem', marginBottom: '1.25rem' }}>
           <div>
-            <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid rgba(0, 242, 254, 0.4)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.75rem' }}>
+            <span className="ai-badge-pulse" style={{ padding: '0.28rem 0.8rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid rgba(0, 242, 254, 0.4)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.75rem' }}>
               <Sparkles className="w-3.5 h-3.5" />
               AI Generated Itinerary
             </span>
-            <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: '#fff', margin: 0 }}>
+            <h1 style={{ fontSize: 'clamp(1.6rem, 5vw, 2.25rem)', fontWeight: 800, color: '#fff', margin: 0 }}>
               {itinerary.durationDays}-Day Trip to {itinerary.destination}
             </h1>
             <p style={{ fontSize: '0.95rem', color: '#cbd5e1', marginTop: '0.5rem', maxWidth: '650px' }}>
@@ -69,7 +69,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             {onSaveItinerary && (
               <button
                 type="button"
@@ -116,25 +116,25 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         </div>
 
         {/* Quick Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>Budget Level</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981' }}>{itinerary.budgetLevel}</span>
+        <div className="metric-grid">
+          <div className="metric-cell">
+            <span className="metric-label">Budget Level</span>
+            <span className="metric-value" style={{ color: '#10b981' }}>{itinerary.budgetLevel}</span>
           </div>
 
-          <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>Travel Style</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#d8b4fe' }}>{itinerary.travelStyle}</span>
+          <div className="metric-cell">
+            <span className="metric-label">Travel Style</span>
+            <span className="metric-value" style={{ color: '#d8b4fe' }}>{itinerary.travelStyle}</span>
           </div>
 
-          <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>Estimated Total</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#00f2fe' }}>{itinerary.estimatedTotalCost}</span>
+          <div className="metric-cell">
+            <span className="metric-label">Estimated Total</span>
+            <span className="metric-value" style={{ color: '#00f2fe' }}>{itinerary.estimatedTotalCost}</span>
           </div>
 
-          <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>Best Season</span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0' }}>{itinerary.bestTimeToVisit}</span>
+          <div className="metric-cell">
+            <span className="metric-label">Best Season</span>
+            <span className="metric-value" style={{ fontSize: '0.82rem', color: '#e2e8f0' }}>{itinerary.bestTimeToVisit}</span>
           </div>
         </div>
 

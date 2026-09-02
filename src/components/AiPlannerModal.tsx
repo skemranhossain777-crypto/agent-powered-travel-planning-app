@@ -211,7 +211,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
                 Trip Duration: <span style={{ color: '#00f2fe', fontWeight: 800 }}>{durationDays} Days</span>
               </label>
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <div className="duration-row">
               {[1, 2, 3, 4, 5, 6, 7].map(num => (
                 <button
                   type="button"
@@ -222,13 +222,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
                     flex: 1,
                     padding: '0.6rem 0',
                     textAlign: 'center',
-                    borderRadius: '12px',
-                    fontWeight: 800,
-                    fontSize: '0.85rem',
-                    border: durationDays === num ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                    background: durationDays === num ? 'var(--gradient-primary)' : 'rgba(255,255,255,0.05)',
-                    color: durationDays === num ? '#040812' : '#94a3b8',
-                    cursor: 'pointer'
+                    border: durationDays === num ? 'none' : '1px solid rgba(255,255,255,0.1)'
                   }}
                 >
                   {num}d
@@ -243,23 +237,13 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
               <DollarSign className="w-4 h-4 text-emerald-400" />
               Budget Preference
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+            <div className="option-grid-3">
               {(['Budget', 'Moderate', 'Luxury'] as const).map((b) => (
                 <button
                   type="button"
                   key={b}
                   onClick={() => setBudgetLevel(b)}
-                  style={{
-                    padding: '0.75rem',
-                    borderRadius: '14px',
-                    border: budgetLevel === b ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
-                    background: budgetLevel === b ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
-                    color: budgetLevel === b ? '#6ee7b7' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  className={`option-card ${budgetLevel === b ? 'selected' : ''}`}
                 >
                   {b === 'Budget' ? '💲 Budget' : b === 'Moderate' ? '💳 Moderate' : '💎 Luxury'}
                 </button>
@@ -353,7 +337,7 @@ export const AiPlannerModal: React.FC<AiPlannerModalProps> = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-primary"
+              className={`btn-primary ${isLoading ? 'btn-loading' : ''}`}
               style={{ width: '100%', padding: '0.9rem', fontSize: '1rem' }}
             >
               {isLoading ? (

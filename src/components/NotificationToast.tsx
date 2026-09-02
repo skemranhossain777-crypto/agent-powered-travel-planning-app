@@ -14,32 +14,33 @@ interface NotificationToastProps {
 
 export const NotificationToast: React.FC<NotificationToastProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div className="toast-stack">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-center justify-between p-4 rounded-2xl border backdrop-blur-xl shadow-2xl animate-fade-in ${
+          className={`toast-item ${
             toast.type === 'success'
-              ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+              ? 'toast-success'
               : toast.type === 'error'
-              ? 'bg-red-950/80 border-red-500/40 text-red-200'
-              : 'bg-cyan-950/80 border-cyan-500/40 text-cyan-200'
+              ? 'toast-error'
+              : 'toast-info'
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="toast-msg">
             {toast.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-5 h-5" />
             ) : toast.type === 'error' ? (
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+              <AlertCircle className="w-5 h-5" />
             ) : (
-              <Info className="w-5 h-5 text-cyan-400 shrink-0" />
+              <Info className="w-5 h-5" />
             )}
-            <span className="text-xs font-bold leading-snug">{toast.message}</span>
+            <span>{toast.message}</span>
           </div>
 
           <button
             onClick={() => onDismiss(toast.id)}
-            className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-white transition-colors ml-2"
+            className="toast-dismiss"
+            aria-label="Dismiss notification"
           >
             <X className="w-4 h-4" />
           </button>

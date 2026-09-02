@@ -25,13 +25,13 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
     <div className="section-container animate-fade-in">
       
       {/* Sub-navigation selector */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', margin: 0 }}>Your Saved Collection</h1>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Access bookmarked locations and custom AI travel plans</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.75rem', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="page-heading">
+          <h1>Your Saved Collection</h1>
+          <p>Access bookmarked locations and custom AI travel plans</p>
         </div>
 
-        <div className="nav-tabs" style={{ marginLeft: 'auto' }}>
+        <div className="nav-tabs" style={{ marginLeft: 'auto', display: 'flex' }}>
           <button
             type="button"
             onClick={() => setSubTab('places')}
@@ -55,10 +55,12 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
       {/* Content Body */}
       {subTab === 'places' ? (
         savedPlaces.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
-            <Bookmark className="w-12 h-12 text-slate-600" style={{ margin: '0 auto 1rem' }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>No Saved Places Yet</h3>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '400px', margin: '0 auto' }}>
+          <div className="state-panel">
+            <div className="state-panel-icon">
+              <Bookmark className="w-7 h-7" />
+            </div>
+            <h3>No Saved Places Yet</h3>
+            <p>
               Explore places on the home feed and click the bookmark icon to save them for your trip.
             </p>
           </div>
@@ -113,20 +115,19 @@ export const BookmarksView: React.FC<BookmarksViewProps> = ({
         )
       ) : (
         savedItineraries.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
-            <Sparkles className="w-12 h-12 text-slate-600" style={{ margin: '0 auto 1rem' }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>No Saved Itineraries</h3>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '400px', margin: '0 auto' }}>
+          <div className="state-panel">
+            <div className="state-panel-icon">
+              <Sparkles className="w-7 h-7" />
+            </div>
+            <h3>No Saved Itineraries</h3>
+            <p>
               Use the AI Travel Planner to generate a custom itinerary and save it to your trip portfolio.
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+          <div className="itin-grid">
             {savedItineraries.map((itin) => (
-              <div
-                key={itin.id}
-                style={{ padding: '1.5rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-              >
+              <div key={itin.id} className="itin-card">
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                     <span style={{ padding: '0.25rem 0.65rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.15)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase' }}>
