@@ -15,13 +15,15 @@ import { dataConnect } from './dataConnectService';
 import { enrichPlacesWithImages } from './placeImages';
 
 /**
- * Gemini text model aliases to try in order. gemini-3.6-flash is the current
- * stable flash model on the Gemini Developer API (no billing required) — the
- * platform itself recommends migrating to it. The others are kept as automatic
- * fallbacks for transient "high demand" / quota / retired-model errors.
+ * Gemini text model aliases to try in order. gemini-3.5-flash-lite is first: it
+ * is lighter/cheaper and has its own free-tier quota separate from the flash
+ * models, so it can keep working even after the flash daily caps are hit.
+ * gemini-3.6-flash is the current stable flash model on the Gemini Developer
+ * API (no billing required); the others are automatic fallbacks for transient
+ * "high demand" / quota / retired-model errors.
  * See https://firebase.google.com/docs/ai-logic/models for the latest list.
  */
-const TEXT_MODEL_ALIASES = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'];
+const TEXT_MODEL_ALIASES = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'];
 
 const plannerModels: Record<string, GenerativeModel> = {};
 const conciergeModels: Record<string, GenerativeModel> = {};
