@@ -1,0 +1,8 @@
+dist
+node_modules
+.firebase
+dataconnect/.dataconnect
+devserver.log
+package-lock.json
+skills-lock.json
+coverage

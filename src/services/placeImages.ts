@@ -1,4 +1,5 @@
 import { Place } from '../types/travel';
+import { asOptionalNumber, asOptionalString, asRecordArray, isRecord } from '../utils/validation';
 
 const WIKI_API =
   'https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json' +
@@ -17,7 +18,7 @@ function placeKey(name: string, city: string, country: string): string {
   return `${name.trim().toLowerCase()}|${city.trim().toLowerCase()}|${(country || '').trim().toLowerCase()}`;
 }
 
-async function fetchJson(url: string, timeoutMs = 5000): Promise<Record<string, any> | null> {
+async function fetchJson(url: string, timeoutMs = 5000): Promise<unknown | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -25,12 +26,34 @@ async function fetchJson(url: string, timeoutMs = 5000): Promise<Record<string, 
     if (!res.ok) {
       return null;
     }
-    return (await res.json()) as Record<string, any>;
+    return await res.json();
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Extracts the `query.pages` object (a map of pageId -> page) from a wiki API
+ * response. Returns `null` when the payload is malformed or empty.
+ */
+function queryPages(data: unknown): Record<string, unknown> | null {
+  if (!isRecord(data)) return null;
+  const query = data.query;
+  if (!isRecord(query)) return null;
+  const pages = query.pages;
+  return isRecord(pages) ? pages : null;
+}
+
+function sortedPages(pages: Record<string, unknown>): Record<string, unknown>[] {
+  return Object.values(pages)
+    .filter(isRecord)
+    .sort((a, b) => (asOptionalNumber(a.index) ?? 999) - (asOptionalNumber(b.index) ?? 999));
+}
+
+function firstImageInfo(page: Record<string, unknown>): Record<string, unknown> | undefined {
+  return asRecordArray(page.imageinfo)[0];
 }
 
 function normalized(s: string): string {
@@ -72,16 +95,16 @@ function nameVariants(name: string): string[] {
  * attach a wrong-but-similar picture.
  */
 function matchScore(
-  page: any,
+  page: Record<string, unknown>,
   name: string,
   city: string,
   country: string
 ): number {
-  const title = (page?.title || '').toLowerCase();
+  const title = (asOptionalString(page.title) || '').toLowerCase();
   const nameLower = name.trim().toLowerCase();
   const nameNorm = normalized(nameLower);
   const titleNorm = normalized(title);
-  const snippet = (page?.extract || '').toLowerCase();
+  const snippet = (asOptionalString(page.extract) || '').toLowerCase();
   const tokens = nameLower.split(/[^a-z0-9]+/).filter((t) => t.length > 2);
   const targets = [city, country]
     .map((s) => s?.trim().toLowerCase())
@@ -138,14 +161,13 @@ async function lookupWikipedia(
       `${WIKI_API}&gsrsearch=${encodeURIComponent(query)}` +
         `&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=720&explaintext=&exsentences=2`
     );
-    const pages = data?.query?.pages;
+    const pages = queryPages(data);
     if (!pages) {
       continue;
     }
-    const candidates = Object.values(pages) as any[];
-    candidates.sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
-    for (const page of candidates) {
-      const thumb = page?.thumbnail?.source;
+    for (const page of sortedPages(pages)) {
+      const thumbBox = page.thumbnail;
+      const thumb = isRecord(thumbBox) ? asOptionalString(thumbBox.source) : undefined;
       if (!thumb) {
         continue;
       }
@@ -204,20 +226,19 @@ async function lookupCommons(
   for (const variant of nameVariants(name).slice(0, 3)) {
     const query = `${variant} ${city} ${country}`.trim().slice(0, 160);
     const data = await fetchJson(`${COMMONS_API}&gsrsearch=${encodeURIComponent(query)}`);
-    const pages = data?.query?.pages;
+    const pages = queryPages(data);
     if (!pages) {
       continue;
     }
-    const candidates = Object.values(pages) as any[];
-    candidates.sort((a, b) => (a.index ?? 999) - (b.index ?? 999));
-    for (const page of candidates) {
-      const info = page?.imageinfo?.[0];
-      const thumb = info?.thumburl || info?.url;
+    for (const page of sortedPages(pages)) {
+      const info = firstImageInfo(page);
+      const thumb = asOptionalString(info?.thumburl) || asOptionalString(info?.url);
       if (!thumb) {
         continue;
       }
-      let score = fileMatches(page?.title || '', variant, city, country) ? 2 : 0;
-      const file = stem(page.title);
+      const title = asOptionalString(page.title) || '';
+      let score = fileMatches(title, variant, city, country) ? 2 : 0;
+      const file = stem(title);
       if (city && file.includes(city.toLowerCase())) score += 1;
       if (country && file.includes(country.toLowerCase())) score += 1;
       if (score > 0 && score > bestScore) {
@@ -300,12 +321,22 @@ async function verifyWikimediaFile(url: string): Promise<string | null> {
     return null;
   }
   const api = wikiApiForUrl(url);
-  const data = await fetchJson(
-    `${api}?action=query&origin=*&format=json` +
-      `&titles=${encodeURIComponent(`File:${file}`)}&prop=imageinfo&iiprop=url|mime&iiurlwidth=720`
-  );
-  const info = (Object.values(data?.query?.pages || {})[0] as any)?.imageinfo?.[0];
-  return info?.thumburl || info?.url || null;
+  const pages = queryPages(await fetchJson(
+      `${api}?action=query&origin=*&format=json` +
+        `&titles=${encodeURIComponent(`File:${file}`)}&prop=imageinfo&iiprop=url|mime&iiurlwidth=720`
+    ));
+    if (!pages) {
+      return null;
+    }
+    const first = Object.values(pages).find(isRecord);
+    if (!first) {
+      return null;
+    }
+    const info = firstImageInfo(first);
+    if (!info) {
+      return null;
+    }
+    return asOptionalString(info.thumburl) || asOptionalString(info.url) || null;
 }
 
 /**

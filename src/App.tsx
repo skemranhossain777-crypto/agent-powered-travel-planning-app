@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Place, Category, User, Itinerary, UserActivityEvent, UserLocation } from './types/travel';
 import { dataConnect } from './services/dataConnectService';
 import { aiAgent } from './services/aiTravelAgent';
@@ -19,9 +19,16 @@ import { ProfileView } from './components/ProfileView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { NotificationToast, ToastMessage } from './components/NotificationToast';
 import { Compass, Sparkles, MessageCircle } from 'lucide-react';
+import { useUiStore } from './stores/uiStore';
+import { itineraryToTripWorkspace } from './domain/trips/tripModel';
+import { tripService } from './services/tripService';
+import { useNavigate } from 'react-router-dom';
+import { VIEW_PATH, viewToPath, tripPath } from './routes';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'explore' | 'bookmarks' | 'itineraries' | 'profile'>('explore');
+  const activeTab = useUiStore((s) => s.activeView);
+  const navigate = useNavigate();
+  const wasSignedInRef = useRef(false);
   const [places, setPlaces] = useState<Place[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [bookmarkedPlaces, setBookmarkedPlaces] = useState<Place[]>([]);
@@ -34,7 +41,10 @@ export function App() {
   const [isExploring, setIsExploring] = useState(false);
   const [exploreHeading, setExploreHeading] = useState('Discover Top Destinations');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [discoverContext, setDiscoverContext] = useState<{ query: string; loc: UserLocation | null } | null>(null);
+  const [discoverContext, setDiscoverContext] = useState<{
+    query: string;
+    loc: UserLocation | null;
+  } | null>(null);
 
   // How many AI-discovered places to request per search/feed. Raised well above
   // the old hard-coded 8 so results are fuller; limited by the model's output
@@ -55,11 +65,15 @@ export function App() {
     const unsub = authService.subscribe((user) => {
       setCurrentUser(user);
       if (user) {
+        wasSignedInRef.current = true;
         setActivities(dataConnect.getActivity(user.id));
         if (!searchQuery) loadExploreFeed(user);
       } else {
         setActivities([]);
-        setActiveTab('explore');
+        if (wasSignedInRef.current) {
+          navigate(VIEW_PATH.explore);
+          wasSignedInRef.current = false;
+        }
         if (places.length === 0) loadExploreFeed(null);
       }
     });
@@ -122,14 +136,19 @@ export function App() {
           let h = heading;
           if (!aiPlaces.length && loc) {
             h = 'Discover Top Destinations';
-            aiPlaces = await aiAgent.discoverPlaces('top worldwide travel destinations and iconic sights', null, EXPLORE_COUNT, user);
+            aiPlaces = await aiAgent.discoverPlaces(
+              'top worldwide travel destinations and iconic sights',
+              null,
+              EXPLORE_COUNT,
+              user
+            );
           }
           if (!aiPlaces.length) {
             throw new Error('AI returned no places');
           }
           return { places: aiPlaces, heading: h };
         })(),
-        deadline
+        deadline,
       ]);
 
       if (result.places.length) {
@@ -155,15 +174,33 @@ export function App() {
   };
 
   // AI discovery query + heading per category tab. The model is told the user's
-// real location via `discoverPlaces`, so these queries demand real, local
-// places near them — never generic worldwide filler.
+  // real location via `discoverPlaces`, so these queries demand real, local
+  // places near them — never generic worldwide filler.
   const CATEGORY_DISCOVER: Record<string, { query: string; heading: string }> = {
-    'cat-rest': { query: 'real restaurants and dining spots actually near the traveler\'s location', heading: 'Restaurants & Dining' },
-    'cat-hist': { query: 'real historical sites and landmarks actually near the traveler\'s location', heading: 'Historical Sites' },
-    'cat-out': { query: 'real parks, nature and outdoor spots actually near the traveler\'s location', heading: 'Outdoor & Nature' },
-    'cat-night': { query: 'real bars, nightlife and entertainment venues actually near the traveler\'s location', heading: 'Nightlife & Bars' },
-    'cat-shop': { query: 'real shopping areas, malls and markets actually near the traveler\'s location', heading: 'Shopping & Bazaars' },
-    'cat-hotel': { query: 'real hotels and resorts actually near the traveler\'s location', heading: 'Hotels & Resorts' }
+    'cat-rest': {
+      query: "real restaurants and dining spots actually near the traveler's location",
+      heading: 'Restaurants & Dining',
+    },
+    'cat-hist': {
+      query: "real historical sites and landmarks actually near the traveler's location",
+      heading: 'Historical Sites',
+    },
+    'cat-out': {
+      query: "real parks, nature and outdoor spots actually near the traveler's location",
+      heading: 'Outdoor & Nature',
+    },
+    'cat-night': {
+      query: "real bars, nightlife and entertainment venues actually near the traveler's location",
+      heading: 'Nightlife & Bars',
+    },
+    'cat-shop': {
+      query: "real shopping areas, malls and markets actually near the traveler's location",
+      heading: 'Shopping & Bazaars',
+    },
+    'cat-hotel': {
+      query: "real hotels and resorts actually near the traveler's location",
+      heading: 'Hotels & Resorts',
+    },
   };
 
   const discoverByCategory = async (catId: string, catName: string, loc: UserLocation | null) => {
@@ -173,7 +210,7 @@ export function App() {
     try {
       const result = await Promise.race([
         aiAgent.discoverPlaces(spec.query, loc, EXPLORE_COUNT, currentUser),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000)),
       ]);
       if (!result.length) throw new Error('AI returned no places');
       await enrichPlacesWithImages(result);
@@ -185,7 +222,10 @@ export function App() {
       await enrichPlacesWithImages(local);
       setPlaces(local);
       setExploreHeading(spec.heading);
-      addToast('info', `Couldn't reach live travel data — showing saved ${catName} places instead.`);
+      addToast(
+        'info',
+        `Couldn't reach live travel data — showing saved ${catName} places instead.`
+      );
     } finally {
       setIsExploring(false);
     }
@@ -199,15 +239,19 @@ export function App() {
     try {
       const more = await Promise.race([
         aiAgent.discoverPlaces(ctx.query, ctx.loc, EXPLORE_COUNT, currentUser, shown),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 15000)),
       ]);
       if (!more.length) {
-        addToast('info', 'That\'s everything we could find — no more places to show.');
+        addToast('info', "That's everything we could find — no more places to show.");
         setDiscoverContext(null);
         return;
       }
-      const seen = new Set(places.map((p) => `${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`));
-      const fresh = more.filter((p) => !seen.has(`${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`));
+      const seen = new Set(
+        places.map((p) => `${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`)
+      );
+      const fresh = more.filter(
+        (p) => !seen.has(`${p.name.trim().toLowerCase()}|${p.city.trim().toLowerCase()}`)
+      );
       await enrichPlacesWithImages(fresh);
       setPlaces((prev) => [...prev, ...fresh]);
     } catch (err) {
@@ -250,7 +294,10 @@ export function App() {
       const aiPlaces = await aiAgent.discoverPlaces(trimmed, null, EXPLORE_COUNT, currentUser);
       if (!aiPlaces.length) {
         setPlaces(local);
-        addToast('info', `AI couldn't find verified places for "${trimmed}". Try a broader keyword.`);
+        addToast(
+          'info',
+          `AI couldn't find verified places for "${trimmed}". Try a broader keyword.`
+        );
         return;
       }
       const seen = new Set(local.map((p) => p.name.toLowerCase()));
@@ -278,9 +325,9 @@ export function App() {
 
   const addToast = (type: 'success' | 'error' | 'info', message: string) => {
     const id = `toast-${Date.now()}`;
-    setToasts(prev => [...prev, { id, type, message }]);
+    setToasts((prev) => [...prev, { id, type, message }]);
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
   };
 
@@ -298,7 +345,7 @@ export function App() {
       setBookmarkedPlaces(updatedBms);
       setActivities(dataConnect.getActivity(currentUser.id));
 
-      const place = places.find(p => p.id === placeId) || selectedPlace;
+      const place = places.find((p) => p.id === placeId) || selectedPlace;
       if (isSaved) {
         addToast('success', `Saved "${place?.name || 'Place'}" to your bookmarks!`);
       } else {
@@ -332,8 +379,11 @@ export function App() {
 
   const handleItineraryGenerated = async (itinerary: Itinerary) => {
     setActiveItinerary(itinerary);
-    setActiveTab('itineraries');
-    addToast('success', `✨ AI generated ${itinerary.durationDays}-day trip to ${itinerary.destination}!`);
+    navigate(viewToPath('itineraries'));
+    addToast(
+      'success',
+      `✨ AI generated ${itinerary.durationDays}-day trip to ${itinerary.destination}!`
+    );
     if (currentUser) {
       setActivities(dataConnect.getActivity(currentUser.id));
     }
@@ -357,6 +407,23 @@ export function App() {
     }
   };
 
+  const handleCreateTripWorkspace = async (itinerary: Itinerary) => {
+    if (!currentUser) {
+      setAuthInitialMode('signin');
+      setIsAuthOpen(true);
+      addToast('info', 'Sign in to create a trip workspace.');
+      return;
+    }
+    try {
+      const workspace = itineraryToTripWorkspace(itinerary, { ownerId: currentUser.id });
+      const created = await tripService.createTrip(workspace);
+      addToast('success', `Trip workspace for ${created.title} created.`);
+      navigate(tripPath(created.id));
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Could not create trip workspace.');
+    }
+  };
+
   const handleDeleteItinerary = async (id: string) => {
     await dataConnect.deleteItinerary(id);
     const updatedItins = await dataConnect.getSavedItineraries();
@@ -367,15 +434,12 @@ export function App() {
     addToast('info', 'Itinerary deleted from saved trips.');
   };
 
-  const bookmarkedIds = bookmarkedPlaces.map(p => p.id);
+  const bookmarkedIds = bookmarkedPlaces.map((p) => p.id);
 
   return (
     <div className="app-shell">
-
       {/* Global Navigation Bar */}
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         onOpenAiPlanner={() => setIsAiPlannerOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
         bookmarkCount={bookmarkedPlaces.length}
@@ -387,10 +451,7 @@ export function App() {
       <main className="main-content">
         {activeTab === 'explore' && (
           <>
-            <Hero
-              onSearch={handleSearchChange}
-              onOpenAiPlanner={() => setIsAiPlannerOpen(true)}
-            />
+            <Hero onSearch={handleSearchChange} onOpenAiPlanner={() => setIsAiPlannerOpen(true)} />
 
             <PlaceExplorer
               heading={exploreHeading}
@@ -412,16 +473,23 @@ export function App() {
           </>
         )}
 
-        {activeTab === 'bookmarks' && (
-          !currentUser ? (
+        {activeTab === 'bookmarks' &&
+          (!currentUser ? (
             <div className="section-container">
               <div className="state-panel">
                 <div className="state-panel-icon">
                   <Compass className="w-7 h-7" />
                 </div>
                 <h3>Sign in to see your saved places</h3>
-                <p>Bookmarks and saved trips are stored on your profile. Create an account with Google or email to keep your travel plans.</p>
-                <button onClick={() => setIsAuthOpen(true)} className="btn-primary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                <p>
+                  Bookmarks and saved trips are stored on your profile. Create an account with
+                  Google or email to keep your travel plans.
+                </p>
+                <button
+                  onClick={() => setIsAuthOpen(true)}
+                  className="btn-primary py-3.5 px-8"
+                  style={{ padding: '0.9rem 2rem' }}
+                >
                   Sign In / Create Account
                 </button>
               </div>
@@ -434,20 +502,20 @@ export function App() {
               onSelectPlace={(place) => setSelectedPlace(place)}
               onSelectItinerary={(itin) => {
                 setActiveItinerary(itin);
-                setActiveTab('itineraries');
+                navigate(viewToPath('itineraries'));
               }}
               onDeleteItinerary={handleDeleteItinerary}
             />
-          )
-        )}
+          ))}
 
-        {activeTab === 'itineraries' && (
-          activeItinerary ? (
+        {activeTab === 'itineraries' &&
+          (activeItinerary ? (
             <ItineraryView
               itinerary={activeItinerary}
               onSaveItinerary={handleSaveItinerary}
               onDeleteItinerary={handleDeleteItinerary}
-              isSaved={savedItineraries.some(i => i.id === activeItinerary.id)}
+              onCreateTripWorkspace={handleCreateTripWorkspace}
+              isSaved={savedItineraries.some((i) => i.id === activeItinerary.id)}
             />
           ) : (
             <div className="section-container">
@@ -457,7 +525,8 @@ export function App() {
                 </div>
                 <h3>No Active AI Trip Yet</h3>
                 <p>
-                  Let our autonomous AI travel agent generate a personalized multi-day itinerary for any destination worldwide.
+                  Let our autonomous AI travel agent generate a personalized multi-day itinerary for
+                  any destination worldwide.
                 </p>
                 <button
                   onClick={() => setIsAiPlannerOpen(true)}
@@ -469,23 +538,47 @@ export function App() {
                 </button>
               </div>
             </div>
-          )
-        )}
+          ))}
 
-        {activeTab === 'profile' && (
-          !currentUser ? (
+        {activeTab === 'profile' &&
+          (!currentUser ? (
             <div className="section-container">
               <div className="state-panel">
                 <div className="state-panel-icon">
                   <Compass className="w-7 h-7" />
                 </div>
                 <h3>Create your VoyageAI profile</h3>
-                <p>Your AI travel agent personalizes recommendations based on your profile, saved places, planned trips, and reviews. Sign in with your real Google account or email to get started.</p>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <button onClick={() => { setAuthInitialMode('signin'); setIsAuthOpen(true); }} className="btn-primary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                <p>
+                  Your AI travel agent personalizes recommendations based on your profile, saved
+                  places, planned trips, and reviews. Sign in with your real Google account or email
+                  to get started.
+                </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setAuthInitialMode('signin');
+                      setIsAuthOpen(true);
+                    }}
+                    className="btn-primary py-3.5 px-8"
+                    style={{ padding: '0.9rem 2rem' }}
+                  >
                     Sign In
                   </button>
-                  <button onClick={() => { setAuthInitialMode('signup'); setIsAuthOpen(true); }} className="btn-secondary py-3.5 px-8" style={{ padding: '0.9rem 2rem' }}>
+                  <button
+                    onClick={() => {
+                      setAuthInitialMode('signup');
+                      setIsAuthOpen(true);
+                    }}
+                    className="btn-secondary py-3.5 px-8"
+                    style={{ padding: '0.9rem 2rem' }}
+                  >
                     Create Account
                   </button>
                 </div>
@@ -498,12 +591,11 @@ export function App() {
                 bookmarksCount={bookmarkedPlaces.length}
                 itinerariesCount={savedItineraries.length}
                 activities={activities}
-                onNavigate={(tab) => setActiveTab(tab)}
+                onNavigate={(tab) => navigate(viewToPath(tab))}
               />
               <AdminDashboard />
             </>
-          )
-        )}
+          ))}
       </main>
 
       {/* Modals & Drawers */}
@@ -564,7 +656,7 @@ export function App() {
       {/* Notification Toast Stream */}
       <NotificationToast
         toasts={toasts}
-        onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))}
+        onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
       />
 
       {/* Footer */}
@@ -578,7 +670,6 @@ export function App() {
           <p>© 2026 VoyageAI. All rights reserved.</p>
         </div>
       </footer>
-
     </div>
   );
 }

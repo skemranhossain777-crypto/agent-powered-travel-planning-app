@@ -69,6 +69,147 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // trips/{tripId} — user-owned trip planning workspaces
+    //   Owner reads/writes; admin may read all. Ownership is fixed at
+    //   creation: updates must keep `ownerId` unchanged, and every
+    //   create/update must pass the shape guard.
+    // ============================================================
+    function isTripStatus(status) {
+      return status in ['draft', 'planning', 'ready', 'in_progress', 'completed', 'cancelled'];
+    }
+
+    function isTripVisibility(visibility) {
+      return visibility in ['private', 'shared'];
+    }
+
+    // A destination must be a map whose `id` and `name` are non-empty strings.
+    // `d.id > ''` is true only for non-empty strings; any non-string value
+    // type-mismatches (error -> deny), so this preserves the map/string/
+    // non-empty guarantees of the previous explicit form in fewer expressions
+    // (needed so the uniqueness check below stays within the 1000-expression
+    // budget at 20 destinations).
+    function isDestination(d) {
+      return d is map
+        && d.id > ''
+        && d.name > '';
+    }
+
+    // Bounded destination-list validation. A trip may hold at most
+    // MAX_TRIP_DESTINATIONS (20) destinations. Rules have no loops, so each
+    // index is guarded explicitly: index N is only inspected when the list is
+    // long enough to contain it.
+    function validDestinations(destinations) {
+      return destinations is list
+        && destinations.size() <= 20
+        && (destinations.size() < 1 || isDestination(destinations[0]))
+        && (destinations.size() < 2 || isDestination(destinations[1]))
+        && (destinations.size() < 3 || isDestination(destinations[2]))
+        && (destinations.size() < 4 || isDestination(destinations[3]))
+        && (destinations.size() < 5 || isDestination(destinations[4]))
+        && (destinations.size() < 6 || isDestination(destinations[5]))
+        && (destinations.size() < 7 || isDestination(destinations[6]))
+        && (destinations.size() < 8 || isDestination(destinations[7]))
+        && (destinations.size() < 9 || isDestination(destinations[8]))
+        && (destinations.size() < 10 || isDestination(destinations[9]))
+        && (destinations.size() < 11 || isDestination(destinations[10]))
+        && (destinations.size() < 12 || isDestination(destinations[11]))
+        && (destinations.size() < 13 || isDestination(destinations[12]))
+        && (destinations.size() < 14 || isDestination(destinations[13]))
+        && (destinations.size() < 15 || isDestination(destinations[14]))
+        && (destinations.size() < 16 || isDestination(destinations[15]))
+        && (destinations.size() < 17 || isDestination(destinations[16]))
+        && (destinations.size() < 18 || isDestination(destinations[17]))
+        && (destinations.size() < 19 || isDestination(destinations[18]))
+        && (destinations.size() < 20 || isDestination(destinations[19]));
+    }
+
+    // Fixed-length 20-element projection of destination ids. Out-of-range
+    // slots are filled with their (numeric) index, which can never equal a
+    // string id, and each sentinel is distinct per slot. Deduplicating this
+    // list and comparing to 20 therefore holds iff all real ids are distinct.
+    // A single list literal (not a concat chain) keeps the projection inside
+    // the 1000-expression budget at 20 destinations. Ids are compared raw,
+    // matching the client's `new Set(ids).size` uniqueness check.
+    function destinationIdProjection(destinations) {
+      let m = destinations.size();
+      return [
+        m > 0 ? destinations[0].id : 0,
+        m > 1 ? destinations[1].id : 1,
+        m > 2 ? destinations[2].id : 2,
+        m > 3 ? destinations[3].id : 3,
+        m > 4 ? destinations[4].id : 4,
+        m > 5 ? destinations[5].id : 5,
+        m > 6 ? destinations[6].id : 6,
+        m > 7 ? destinations[7].id : 7,
+        m > 8 ? destinations[8].id : 8,
+        m > 9 ? destinations[9].id : 9,
+        m > 10 ? destinations[10].id : 10,
+        m > 11 ? destinations[11].id : 11,
+        m > 12 ? destinations[12].id : 12,
+        m > 13 ? destinations[13].id : 13,
+        m > 14 ? destinations[14].id : 14,
+        m > 15 ? destinations[15].id : 15,
+        m > 16 ? destinations[16].id : 16,
+        m > 17 ? destinations[17].id : 17,
+        m > 18 ? destinations[18].id : 18,
+        m > 19 ? destinations[19].id : 19
+      ];
+    }
+
+    function hasUniqueDestinationIds(destinations) {
+      return destinationIdProjection(destinations).toSet().size() == 20;
+    }
+
+    // Legacy compatibility: trips created before the 20-destination cap may hold
+    // more than 20. Such a trip stays writable as long as its destination list is
+    // left byte-for-byte unchanged; any modification must satisfy the cap.
+    function destinationsAcceptable(destinations, existing) {
+      return (validDestinations(destinations) && hasUniqueDestinationIds(destinations))
+        || (existing != null && destinations == existing);
+    }
+
+    // Bounded itinerary-snapshot validation. Rules validate the top-level
+    // contract (present, a map, with the required core fields typed); the deep
+    // nested activity/transport/hotel content is validated by the client
+    // serializer before any write and re-validated on every read, and only the
+    // owner can write here — so the client serializer is authoritative for
+    // deep content while rules still reject arbitrary garbage at the root.
+    function isTripItineraryShape(itinerary) {
+      return itinerary is map
+        && itinerary.destination is string && itinerary.destination.size() > 0
+        && itinerary.summary is string
+        && itinerary.durationDays is number && itinerary.durationDays > 0
+        && itinerary.dayPlans is list;
+    }
+
+    function isTripShape(data, existingDestinations) {
+      return data.keys().hasAll(['ownerId', 'title', 'status', 'visibility', 'destinations', 'memberCount', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId.size() > 0
+        && data.title is string && data.title.size() > 0
+        && isTripStatus(data.status)
+        && isTripVisibility(data.visibility)
+        && destinationsAcceptable(data.destinations, existingDestinations)
+        && data.memberCount is number && data.memberCount >= 0
+        && data.createdAt is string && data.createdAt.size() > 0
+        && data.updatedAt is string && data.updatedAt.size() > 0
+        && (!data.keys().hasAny(['itinerary']) || isTripItineraryShape(data.itinerary));
+    }
+
+    match /trips/{tripId} {
+      allow get: if isAdmin() || resource.data.ownerId == request.auth.uid;
+      // List requires an ownerId == request.auth.uid query filter (owner scoping).
+      allow list: if isAdmin() || resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && isTripShape(request.resource.data, null);
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && isTripShape(request.resource.data, resource.data.destinations);
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ============================================================
     // activity/{uid}/events/{eventId}
     // ============================================================
     match /activity/{uid}/events/{eventId} {

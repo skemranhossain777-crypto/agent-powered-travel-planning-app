@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
 import { Itinerary } from '../types/travel';
-import { Sparkles, Clock, MapPin, BookmarkCheck, Download, Trash2, CheckCircle, Plane, BedDouble, Ticket } from 'lucide-react';
+import {
+  Sparkles,
+  Clock,
+  MapPin,
+  BookmarkCheck,
+  Download,
+  Trash2,
+  CheckCircle,
+  Plane,
+  BedDouble,
+  Ticket,
+  Briefcase,
+} from 'lucide-react';
 
 interface ItineraryViewProps {
   itinerary: Itinerary;
   onSaveItinerary?: (itinerary: Itinerary) => void;
   onDeleteItinerary?: (id: string) => void;
+  onCreateTripWorkspace?: (itinerary: Itinerary) => void;
   isSaved?: boolean;
 }
 
@@ -13,7 +26,8 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
   itinerary,
   onSaveItinerary,
   onDeleteItinerary,
-  isSaved = false
+  onCreateTripWorkspace,
+  isSaved = false,
 }) => {
   const [activeDay, setActiveDay] = useState(1);
   const [savedSuccess, setSavedSuccess] = useState(isSaved);
@@ -64,24 +78,62 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
     link.click();
   };
 
-  const currentDayPlan = itinerary.dayPlans.find(d => d.dayNumber === activeDay) || itinerary.dayPlans[0];
+  const currentDayPlan =
+    itinerary.dayPlans.find((d) => d.dayNumber === activeDay) || itinerary.dayPlans[0];
 
   return (
     <div className="section-container animate-fade-in">
-
       {/* Header Banner */}
       <div className="section-banner">
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem', marginBottom: '1.25rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1.25rem',
+            marginBottom: '1.25rem',
+          }}
+        >
           <div>
-            <span className="ai-badge-pulse" style={{ padding: '0.28rem 0.8rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.15)', border: '1px solid rgba(0, 242, 254, 0.4)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.75rem' }}>
+            <span
+              className="ai-badge-pulse"
+              style={{
+                padding: '0.28rem 0.8rem',
+                borderRadius: '9999px',
+                background: 'rgba(0, 242, 254, 0.15)',
+                border: '1px solid rgba(0, 242, 254, 0.4)',
+                color: '#00f2fe',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                marginBottom: '0.75rem',
+              }}
+            >
               <Sparkles className="w-3.5 h-3.5" />
               AI Generated Itinerary
             </span>
-            <h1 style={{ fontSize: 'clamp(1.6rem, 5vw, 2.25rem)', fontWeight: 800, color: '#fff', margin: 0 }}>
+            <h1
+              style={{
+                fontSize: 'clamp(1.6rem, 5vw, 2.25rem)',
+                fontWeight: 800,
+                color: '#fff',
+                margin: 0,
+              }}
+            >
               {itinerary.durationDays}-Day Trip to {itinerary.destination}
             </h1>
-            <p style={{ fontSize: '0.95rem', color: '#cbd5e1', marginTop: '0.5rem', maxWidth: '650px' }}>
+            <p
+              style={{
+                fontSize: '0.95rem',
+                color: '#cbd5e1',
+                marginTop: '0.5rem',
+                maxWidth: '650px',
+              }}
+            >
               {itinerary.summary}
             </p>
           </div>
@@ -109,6 +161,24 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               </button>
             )}
 
+            {onCreateTripWorkspace && (
+              <button
+                type="button"
+                onClick={() => onCreateTripWorkspace(itinerary)}
+                className="btn-primary"
+                style={{
+                  padding: '0.6rem 1.2rem',
+                  fontSize: '0.85rem',
+                  background: 'rgba(112,0,255,0.25)',
+                  border: '1px solid rgba(168,85,247,0.5)',
+                }}
+                title="Open this trip in the Trip Workspace"
+              >
+                <Briefcase className="w-4 h-4" />
+                Create Trip Workspace
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleExportText}
@@ -124,7 +194,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                 type="button"
                 onClick={() => onDeleteItinerary(itinerary.id)}
                 className="btn-icon"
-                style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}
+                style={{
+                  background: 'rgba(239,68,68,0.15)',
+                  border: '1px solid rgba(239,68,68,0.3)',
+                  color: '#fca5a5',
+                }}
                 title="Delete Itinerary"
               >
                 <Trash2 className="w-4 h-4" />
@@ -137,45 +211,105 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
         <div className="metric-grid">
           <div className="metric-cell">
             <span className="metric-label">Budget Level</span>
-            <span className="metric-value" style={{ color: '#10b981' }}>{itinerary.budgetLevel}</span>
+            <span className="metric-value" style={{ color: '#10b981' }}>
+              {itinerary.budgetLevel}
+            </span>
           </div>
 
           <div className="metric-cell">
             <span className="metric-label">Travel Style</span>
-            <span className="metric-value" style={{ color: '#d8b4fe' }}>{itinerary.travelStyle}</span>
+            <span className="metric-value" style={{ color: '#d8b4fe' }}>
+              {itinerary.travelStyle}
+            </span>
           </div>
 
           <div className="metric-cell">
             <span className="metric-label">Estimated Total</span>
-            <span className="metric-value" style={{ color: '#00f2fe' }}>{itinerary.estimatedTotalCost}</span>
+            <span className="metric-value" style={{ color: '#00f2fe' }}>
+              {itinerary.estimatedTotalCost}
+            </span>
           </div>
 
           <div className="metric-cell">
             <span className="metric-label">Best Season</span>
-            <span className="metric-value" style={{ fontSize: '0.82rem', color: '#e2e8f0' }}>{itinerary.bestTimeToVisit}</span>
+            <span className="metric-value" style={{ fontSize: '0.82rem', color: '#e2e8f0' }}>
+              {itinerary.bestTimeToVisit}
+            </span>
           </div>
         </div>
-
       </div>
 
       {/* Transport + Stay + Sightseeing */}
       {(itinerary.transport?.length || itinerary.hotels?.length || itinerary.sightseeingCost) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.75rem' }}>
-
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.25rem',
+            marginBottom: '1.75rem',
+          }}
+        >
           {itinerary.transport && itinerary.transport.length > 0 && (
-            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div
+              style={{
+                padding: '1.4rem',
+                borderRadius: '20px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <Plane className="w-4 h-4" style={{ color: '#00f2fe' }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#00f2fe' }}>Transport & Ways to Get There</span>
+                <span
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#00f2fe',
+                  }}
+                >
+                  Transport & Ways to Get There
+                </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 {itinerary.transport?.map((t, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.7rem 0.9rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      padding: '0.7rem 0.9rem',
+                      borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{t.mode}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                        {t.mode}
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.route}</div>
                     </div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap' }}>{t.estimatedCost}</span>
+                    <span
+                      style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        color: '#10b981',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t.estimatedCost}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -183,20 +317,78 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           )}
 
           {itinerary.hotels && itinerary.hotels.length > 0 && (
-            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div
+              style={{
+                padding: '1.4rem',
+                borderRadius: '20px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <BedDouble className="w-4 h-4" style={{ color: '#d8b4fe' }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#d8b4fe' }}>Where to Stay</span>
+                <span
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#d8b4fe',
+                  }}
+                >
+                  Where to Stay
+                </span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 {itinerary.hotels?.map((h, i) => (
-                  <div key={i} style={{ padding: '0.75rem 0.9rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{h.name}</div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981', whiteSpace: 'nowrap' }}>{h.estimatedCost}</span>
+                  <div
+                    key={i}
+                    style={{
+                      padding: '0.75rem 0.9rem',
+                      borderRadius: '12px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+                        {h.name}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          color: '#10b981',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {h.estimatedCost}
+                      </span>
                     </div>
-                    {h.area && <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>{h.area}</div>}
-                    {h.ratePerNight && <div style={{ fontSize: '0.75rem', color: '#00f2fe', marginTop: '0.2rem' }}>{h.ratePerNight} / night</div>}
+                    {h.area && (
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
+                        {h.area}
+                      </div>
+                    )}
+                    {h.ratePerNight && (
+                      <div style={{ fontSize: '0.75rem', color: '#00f2fe', marginTop: '0.2rem' }}>
+                        {h.ratePerNight} / night
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -204,16 +396,43 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
           )}
 
           {itinerary.sightseeingCost && (
-            <div style={{ padding: '1.4rem', borderRadius: '20px', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <div
+              style={{
+                padding: '1.4rem',
+                borderRadius: '20px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 <Ticket className="w-4 h-4" style={{ color: '#fbbf24' }} />
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24' }}>Sightseeing / Entry Fees</span>
+                <span
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: '#fbbf24',
+                  }}
+                >
+                  Sightseeing / Entry Fees
+                </span>
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>{itinerary.sightseeingCost}</div>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.4rem' }}>Estimated total for admissions across your trip.</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff' }}>
+                {itinerary.sightseeingCost}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.4rem' }}>
+                Estimated total for admissions across your trip.
+              </div>
             </div>
           )}
-
         </div>
       )}
 
@@ -227,9 +446,16 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
               key={dp.dayNumber}
               onClick={() => setActiveDay(dp.dayNumber)}
               className={`category-btn ${isActive ? 'active' : ''}`}
-              style={{ padding: '0.6rem 1.2rem', flexDirection: 'column', alignItems: 'flex-start', gap: '0.1rem' }}
+              style={{
+                padding: '0.6rem 1.2rem',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '0.1rem',
+              }}
             >
-              <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>Day {dp.dayNumber}</span>
+              <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 800 }}>
+                Day {dp.dayNumber}
+              </span>
               <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{dp.theme}</span>
             </button>
           );
@@ -238,32 +464,106 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
 
       {/* Selected Day Activities Schedule */}
       {currentDayPlan && (
-        <div style={{ padding: '2rem', background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px' }}>
+        <div
+          style={{
+            padding: '2rem',
+            background: 'rgba(15, 23, 42, 0.75)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '24px',
+          }}
+        >
           <div style={{ marginBottom: '1.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#00f2fe' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#00f2fe',
+              }}
+            >
               Day {currentDayPlan.dayNumber} Schedule
             </span>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginTop: '0.25rem' }}>
+            <h3
+              style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginTop: '0.25rem' }}
+            >
               {currentDayPlan.title}
             </h3>
           </div>
 
-          <div style={{ position: 'relative', paddingLeft: '1.75rem', borderLeft: '2px solid rgba(0, 242, 254, 0.3)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div
+            style={{
+              position: 'relative',
+              paddingLeft: '1.75rem',
+              borderLeft: '2px solid rgba(0, 242, 254, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.5rem',
+            }}
+          >
             {currentDayPlan.activities.map((act, index) => (
               <div key={index} style={{ position: 'relative' }}>
-                
                 {/* Timeline Dot */}
-                <div style={{ position: 'absolute', left: '-2.35rem', top: '0.35rem', width: '14px', height: '14px', borderRadius: '50%', background: '#040812', border: '2px solid #00f2fe' }} />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '-2.35rem',
+                    top: '0.35rem',
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    background: '#040812',
+                    border: '2px solid #00f2fe',
+                  }}
+                />
 
-                <div style={{ padding: '1.25rem', borderRadius: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <span style={{ padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(0, 242, 254, 0.1)', border: '1px solid rgba(0, 242, 254, 0.3)', color: '#00f2fe', fontSize: '0.75rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: '16px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '9999px',
+                        background: 'rgba(0, 242, 254, 0.1)',
+                        border: '1px solid rgba(0, 242, 254, 0.3)',
+                        color: '#00f2fe',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}
+                    >
                       <Clock className="w-3.5 h-3.5" />
                       {act.time}
                     </span>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(112, 0, 255, 0.15)', color: '#d8b4fe', fontSize: '0.75rem', fontWeight: 600 }}>
+                      <span
+                        style={{
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '9999px',
+                          background: 'rgba(112, 0, 255, 0.15)',
+                          color: '#d8b4fe',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                        }}
+                      >
                         {act.category}
                       </span>
                       <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981' }}>
@@ -272,11 +572,28 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     </div>
                   </div>
 
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginBottom: '0.25rem' }}>
+                  <h4
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: '#fff',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
                     {act.title}
                   </h4>
 
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.5rem' }}>
+                  <p
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: '#00f2fe',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
                     <MapPin className="w-3.5 h-3.5" />
                     {act.locationName}
                   </p>
@@ -285,14 +602,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({
                     {act.description}
                   </p>
                 </div>
-
               </div>
             ))}
           </div>
-
         </div>
       )}
-
     </div>
   );
 };

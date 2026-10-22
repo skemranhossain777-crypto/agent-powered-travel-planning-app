@@ -50,6 +50,12 @@ node_modules/
 # Build output
 dist/
 
+# Compiled Cloud Functions output (deploy-time only)
+functions/lib/
+
+# TypeScript incremental build metadata (generated)
+*.tsbuildinfo
+
 # Local environment variables (App Check debug token, secrets)
 .env
 .env.*

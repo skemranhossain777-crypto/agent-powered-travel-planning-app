@@ -1,3 +1,7 @@
+export type BudgetLevel = 'Budget' | 'Moderate' | 'Luxury';
+
+export type TravelStyle = 'Solo' | 'Couples' | 'Family' | 'Friends' | 'Backpacker';
+
 export interface UserProfile {
   displayName?: string;
   email?: string;
@@ -6,7 +10,7 @@ export interface UserProfile {
   homeCity?: string;
   travelStyles: string[];
   interests: string[];
-  budgetPreference?: 'Budget' | 'Moderate' | 'Luxury';
+  budgetPreference?: BudgetLevel;
 }
 
 export interface User {
@@ -142,7 +146,7 @@ export interface Itinerary {
   destination: string;
   country: string;
   durationDays: number;
-  budgetLevel: 'Budget' | 'Moderate' | 'Luxury';
+  budgetLevel: BudgetLevel;
   travelStyle: string;
   interests: string[];
   summary: string;
@@ -168,8 +172,8 @@ export interface UserLocation {
 export interface AiPlannerParams {
   destination: string;
   durationDays: number;
-  budgetLevel: 'Budget' | 'Moderate' | 'Luxury';
-  travelStyle: 'Solo' | 'Couples' | 'Family' | 'Friends' | 'Backpacker';
+  budgetLevel: BudgetLevel;
+  travelStyle: TravelStyle;
   interests: string[];
   location?: UserLocation;
   notes?: string;

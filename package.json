@@ -6,7 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:planning-reference": "vitest run src/test/planningProvenance.test.ts src/test/planningLifecycle.test.ts src/test/planningReferenceProjection.test.ts src/test/planningReferenceConflict.test.ts src/test/planningReferenceChangeContext.test.ts src/test/planningReferenceSaveReview.test.ts src/test/planningReferenceResolution.test.ts src/test/planningReferenceSelection.test.ts src/test/PlanningEditor.test.tsx src/test/TripWorkspacePagePlanningReview.test.tsx",
+    "test:provider-discovery": "vitest run src/test/dependencyBoundary.test.ts src/test/discoveryInput.test.ts src/test/providerResults.test.ts src/test/executionOperations.test.ts src/test/providerAdapter.test.ts src/test/mockProviders.test.ts src/test/mockDiscoveryService.test.ts src/test/discoveryOrchestration.test.ts src/test/discoveryHandoff.test.ts",
+    "test:provider-real": "vitest run src/test/dependencyBoundary.test.ts src/test/realDiscoveryHandoff.test.ts src/test/amadeusConfig.test.ts src/test/amadeusMapping.test.ts src/test/amadeusConnection.test.ts src/test/amadeusAdapter.test.ts src/test/realDiscoveryService.test.ts",
+    "test:provider-server": "vitest run src/test/dependencyBoundary.test.ts src/test/serverDiscoveryValidation.test.ts src/test/serverDiscoveryAuth.test.ts src/test/serverDiscoveryRunner.test.ts src/test/serverDiscoverySecurity.test.ts src/test/serverDiscoveryClient.test.ts",
+    "test:provider-execution": "vitest run src/test/dependencyBoundary.test.ts src/test/serverExecutionValidation.test.ts src/test/serverExecutionAuth.test.ts src/test/serverExecutionRunner.test.ts src/test/serverExecutionSecurity.test.ts src/test/serverExecutionCapabilityValidation.test.ts src/test/serverExecutionCapabilityRunner.test.ts src/test/serverExecutionCapabilitySecurity.test.ts src/test/tripExecutionProvider.test.ts src/test/realExecutionService.test.ts src/test/amadeusExecutionAdapter.test.ts src/test/amadeusExecutionConfig.test.ts src/test/amadeusExecutionMapping.test.ts src/test/amadeusExecutionConnection.test.ts src/test/tripExecutionCapability.test.ts src/test/tripExecutionPipeline.test.ts",
+    "test:provider-google": "vitest run src/test/dependencyBoundary.test.ts src/test/googlePlacesConfig.test.ts src/test/googlePlacesMapping.test.ts src/test/googlePlacesConnection.test.ts src/test/googlePlacesAdapter.test.ts src/test/googlePlacesService.test.ts src/test/googlePlacesSecurity.test.ts src/test/googlePlacesDetails.test.ts src/test/googlePlacesPlanningAdapter.test.ts",
+    "test:provider-google-routes": "vitest run src/test/dependencyBoundary.test.ts src/test/providerRoutesDomain.test.ts src/test/googleRoutesConfig.test.ts src/test/googleRoutesMapping.test.ts src/test/googleRoutesConnection.test.ts src/test/googleRoutesAdapter.test.ts src/test/googleRoutesService.test.ts src/test/googleRoutesSecurity.test.ts src/test/googleRoutesFixtures.test.ts src/test/googleRoutesPlanningAdapter.test.ts"
   },
   "dependencies": {
     "firebase": "^12.18.0",
@@ -14,13 +29,30 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "react-router-dom": "^7.18.3",
+    "remark-gfm": "^4.0.1",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^3.2.7",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.9.6",
     "typescript": "^5.2.2",
-    "vite": "^5.1.6"
+    "typescript-eslint": "^8.70.0",
+    "vite": "^5.1.6",
+    "vitest": "^3.2.7"
   }
 }

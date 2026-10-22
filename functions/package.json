@@ -1,0 +1,25 @@
+{
+  "name": "voyageai-real-discovery-functions",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Firebase Cloud Functions v2 host for the VoyageAI read-only external discovery (STEP 42), execution (STEP 67), and execution-capability (STEP 68) boundaries.",
+  "main": "lib/functions/src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy:only": "firebase deploy --only functions:realDiscovery",
+    "deploy:only:discovery": "firebase deploy --only functions:realDiscovery",
+    "deploy:only:execution": "firebase deploy --only functions:realExecution",
+    "deploy:only:capabilities": "firebase deploy --only functions:realExecutionCapabilities"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.2.2"
+  }
+}

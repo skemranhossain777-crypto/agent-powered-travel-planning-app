@@ -7,8 +7,37 @@
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
+      {
+        "source": "/api/real-execution/capabilities",
+        "function": {
+          "functionId": "realExecutionCapabilities",
+          "region": "us-central1",
+          "pinTag": false
+        }
+      },
+      {
+        "source": "/api/real-execution",
+        "function": {
+          "functionId": "realExecution",
+          "region": "us-central1",
+          "pinTag": false
+        }
+      },
+      {
+        "source": "/api/**",
+        "function": {
+          "functionId": "realDiscovery",
+          "region": "us-central1",
+          "pinTag": false
+        }
+      },
       { "source": "**", "destination": "/index.html" }
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "predeploy": ["npm --prefix functions run build"]
   },
   "emulators": {
     "dataconnect": {

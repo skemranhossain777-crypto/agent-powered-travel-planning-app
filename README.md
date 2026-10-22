@@ -35,7 +35,7 @@ dataconnect/    Data Connect source (optional backend layer)
 
 ### Prerequisites
 
-- Node.js 16+ and npm
+- Node.js 20+ and npm (the Cloud Functions runtime is `nodejs20`)
 - A Firebase project (this repo targets `my-first-project-55f9a`; create your own for a fork)
 
 ### 1. Install dependencies
@@ -53,10 +53,18 @@ cp .env.example .env.local       # local development
 cp .env.example .env.production  # production builds/deploy
 ```
 
-The two values are:
+A production build **requires** the core Firebase web config (public by design). Set the
+values only in your gitignored env files; `.env.example` documents every name. Required for
+`npm run build`:
 
-- `VITE_APPCHECK_DEBUG_TOKEN` — a dev-only App Check debug token (register it in the console).
-- `VITE_RECAPTCHA_SITE_KEY` — a production reCAPTCHA Enterprise site key (public by design).
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+
+Optional App Check values: `VITE_APPCHECK_DEBUG_TOKEN` (dev-only debug token) and
+`VITE_RECAPTCHA_SITE_KEY` (production reCAPTCHA Enterprise site key, public by design). The
+server-side provider keys further down `.env.example` must **never** use the `VITE_` prefix.
 
 > **Security:** `.gitignore` excludes `.env`, `.env.*` except `.env.example`. Never commit real
 > keys, tokens or the debug token. Do not enable `localhost` in reCAPTCHA allowed domains.
@@ -80,14 +88,21 @@ Set up the features this app uses **before** your first local run:
 | AI Logic (Gemini) | `firebase init ailogic` and enable the Gemini Developer API provider |
 | App Check | Requirement for AI Logic — see [Enabling production AI](#enabling-production-ai) |
 
-Deploy rules, code and hosting:
+Build and deploy:
 
 ```bash
-firebase login
-npx firebase-tools deploy --only firestore:rules,hosting
+npx firebase-tools login                             # once
+npm run build                                        # type-check + build dist/ (needs the VITE_FIREBASE_* config)
+npm --prefix functions install                       # once, if you have not already
+npx firebase-tools deploy --only functions,hosting   # predeploy compiles functions first
+npx firebase-tools deploy --only firestore:rules     # rules live in firestore.rules
 ```
 
-Live site is served from Firebase Hosting at your project's `.web.app` or custom domain.
+The `functions.predeploy` hook in `firebase.json` compiles the Cloud Functions
+(`npm --prefix functions run build`) before they are deployed, so a functions deploy never
+ships stale compiled output. Run `npx firebase-tools use` to confirm the active project
+before deploying. Live site is served from Firebase Hosting at your project's `.web.app` or
+custom domain.
 
 ## Admin dashboard
 

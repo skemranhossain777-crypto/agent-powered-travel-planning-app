@@ -1,10 +1,10 @@
 import React from 'react';
-import { Compass, Sparkles, Bookmark, Map, User as UserIcon, LogIn } from 'lucide-react';
+import { Compass, Sparkles, Bookmark, Map, Briefcase, User as UserIcon, LogIn } from 'lucide-react';
 import { User } from '../types/travel';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { pathToView, viewToPath, TRIPS_PATH } from '../routes';
 
 interface NavbarProps {
-  activeTab: 'explore' | 'bookmarks' | 'itineraries' | 'profile';
-  setActiveTab: (tab: 'explore' | 'bookmarks' | 'itineraries' | 'profile') => void;
   onOpenAiPlanner: () => void;
   onOpenAuth: () => void;
   bookmarkCount: number;
@@ -13,14 +13,15 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  activeTab,
-  setActiveTab,
   onOpenAiPlanner,
   onOpenAuth,
   bookmarkCount,
   savedItineraryCount,
   currentUser
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = pathToView(location.pathname);
   return (
     <>
       <header className="navbar">
@@ -29,7 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Brand Logo */}
           <div
             className="brand-logo"
-            onClick={() => setActiveTab('explore')}
+            onClick={() => navigate(viewToPath('explore'))}
           >
             <div className="brand-icon">
               <Compass className="w-6 h-6 stroke-[2.5]" />
@@ -44,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="nav-tabs">
             <button
               type="button"
-              onClick={() => setActiveTab('explore')}
+              onClick={() => navigate(viewToPath('explore'))}
               className={`nav-tab-btn ${activeTab === 'explore' ? 'active' : ''}`}
             >
               <Compass className="w-4 h-4" />
@@ -53,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab('bookmarks')}
+              onClick={() => navigate(viewToPath('bookmarks'))}
               className={`nav-tab-btn ${activeTab === 'bookmarks' ? 'active' : ''}`}
             >
               <Bookmark className="w-4 h-4" />
@@ -65,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab('itineraries')}
+              onClick={() => navigate(viewToPath('itineraries'))}
               className={`nav-tab-btn ${activeTab === 'itineraries' ? 'active' : ''}`}
             >
               <Map className="w-4 h-4" />
@@ -77,7 +78,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
-              onClick={() => setActiveTab('profile')}
+              onClick={() => navigate(TRIPS_PATH)}
+              className="nav-tab-btn"
+              title="Manage your Trip Workspaces"
+            >
+              <Briefcase className="w-4 h-4" />
+              Trip Workspaces
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate(viewToPath('profile'))}
               className={`nav-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
             >
               <UserIcon className="w-4 h-4" />
@@ -100,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 className="navbar-user"
-                onClick={() => setActiveTab('profile')}
+                onClick={() => navigate(viewToPath('profile'))}
                 title="Open my profile"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
               >
@@ -137,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <nav className="mobile-tabbar" aria-label="Primary navigation">
         <button
           type="button"
-          onClick={() => setActiveTab('explore')}
+          onClick={() => navigate(viewToPath('explore'))}
           className={`mobile-tab-btn ${activeTab === 'explore' ? 'active' : ''}`}
         >
           <Compass />
@@ -146,7 +157,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveTab('bookmarks')}
+          onClick={() => navigate(viewToPath('bookmarks'))}
           className={`mobile-tab-btn ${activeTab === 'bookmarks' ? 'active' : ''}`}
         >
           <Bookmark />
@@ -167,7 +178,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveTab('itineraries')}
+          onClick={() => navigate(viewToPath('itineraries'))}
           className={`mobile-tab-btn ${activeTab === 'itineraries' ? 'active' : ''}`}
         >
           <Map />
@@ -179,7 +190,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           type="button"
-          onClick={() => setActiveTab('profile')}
+          onClick={() => navigate(TRIPS_PATH)}
+          className="mobile-tab-btn"
+          title="Manage your Trip Workspaces"
+        >
+          <Briefcase />
+          <span className="tab-label">Workspaces</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate(viewToPath('profile'))}
           className={`mobile-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
         >
           <UserIcon />

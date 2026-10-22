@@ -2,6 +2,7 @@ import { getGenerativeModel, Schema, GenerativeModel } from 'firebase/ai';
 import { getAIService } from './firebase';
 import {
   AiPlannerParams,
+  BudgetLevel,
   Itinerary,
   ChatMessage,
   DayPlan,
@@ -11,6 +12,7 @@ import {
   User
 } from '../types/travel';
 import { describeLocation, getCurrencyCode, currencySymbol } from './geolocation';
+import { asOptionalNumber, asOptionalString, asRecordArray, asStringArray, isRecord } from '../utils/validation';
 import { dataConnect } from './dataConnectService';
 import { enrichPlacesWithImages } from './placeImages';
 
@@ -330,7 +332,97 @@ interface RawItinerary {
   }>;
 }
 
-function normalizeBudget(value: string): 'Budget' | 'Moderate' | 'Luxury' {
+type RawTransport = NonNullable<RawItinerary['transport']>[number];
+type RawHotel = NonNullable<RawItinerary['hotels']>[number];
+type RawDayPlan = NonNullable<RawItinerary['dayPlans']>[number];
+type RawActivity = NonNullable<RawDayPlan['activities']>[number];
+
+function toRawDiscoveredPlace(value: unknown): RawDiscoveredPlace {
+  if (!isRecord(value)) return {};
+  return {
+    name: asOptionalString(value.name),
+    city: asOptionalString(value.city),
+    country: asOptionalString(value.country),
+    category: asOptionalString(value.category),
+    description: asOptionalString(value.description),
+    tags: asStringArray(value.tags),
+    priceLevel: asOptionalString(value.priceLevel),
+    averageRating: asOptionalNumber(value.averageRating),
+    reviewCount: asOptionalNumber(value.reviewCount),
+    latitude: asOptionalNumber(value.latitude),
+    longitude: asOptionalNumber(value.longitude),
+    address: asOptionalString(value.address),
+    websiteUrl: asOptionalString(value.websiteUrl),
+    imageUrl: asOptionalString(value.imageUrl)
+  };
+}
+
+function toRawTransport(value: unknown): RawTransport {
+  if (!isRecord(value)) return {};
+  return {
+    mode: asOptionalString(value.mode),
+    route: asOptionalString(value.route),
+    estimatedCost: asOptionalString(value.estimatedCost)
+  };
+}
+
+function toRawHotel(value: unknown): RawHotel {
+  if (!isRecord(value)) return {};
+  return {
+    name: asOptionalString(value.name),
+    area: asOptionalString(value.area),
+    ratePerNight: asOptionalString(value.ratePerNight),
+    estimatedCost: asOptionalString(value.estimatedCost)
+  };
+}
+
+function toRawActivity(value: unknown): RawActivity {
+  if (!isRecord(value)) return {};
+  return {
+    time: asOptionalString(value.time),
+    title: asOptionalString(value.title),
+    description: asOptionalString(value.description),
+    locationName: asOptionalString(value.locationName),
+    category: asOptionalString(value.category),
+    estimatedCost: asOptionalString(value.estimatedCost)
+  };
+}
+
+function toRawDayPlan(value: unknown): RawDayPlan {
+  if (!isRecord(value)) return {};
+  return {
+    dayNumber: asOptionalNumber(value.dayNumber),
+    title: asOptionalString(value.title),
+    theme: asOptionalString(value.theme),
+    activities: asRecordArray(value.activities).map(toRawActivity)
+  };
+}
+
+/**
+ * Validates + normalizes the model's raw JSON into the internal RawItinerary
+ * shape. Non-object roots/entries are dropped; string numbers are coerced; all
+ * string fields fall back to undefined so buildItinerary's fallbacks apply.
+ */
+function toRawItinerary(value: unknown): RawItinerary {
+  if (!isRecord(value)) return {};
+  return {
+    destination: asOptionalString(value.destination),
+    country: asOptionalString(value.country),
+    durationDays: asOptionalNumber(value.durationDays),
+    budgetLevel: asOptionalString(value.budgetLevel),
+    travelStyle: asOptionalString(value.travelStyle),
+    interests: asStringArray(value.interests),
+    summary: asOptionalString(value.summary),
+    estimatedTotalCost: asOptionalString(value.estimatedTotalCost),
+    bestTimeToVisit: asOptionalString(value.bestTimeToVisit),
+    sightseeingCost: asOptionalString(value.sightseeingCost),
+    transport: asRecordArray(value.transport).map(toRawTransport),
+    hotels: asRecordArray(value.hotels).map(toRawHotel),
+    dayPlans: asRecordArray(value.dayPlans).map(toRawDayPlan)
+  };
+}
+
+function normalizeBudget(value: string): BudgetLevel {
   const v = (value || '').toLowerCase();
   if (v.includes('lux')) return 'Luxury';
   if (v.includes('bud')) return 'Budget';
@@ -516,7 +608,7 @@ function resolveCategoryId(raw: RawDiscoveredPlace): string {
 }
 
 function mapDiscoveredPlaces(text: string, count: number, categories: Category[] = []): Place[] {
-  let parsed: { places?: RawDiscoveredPlace[] } = {};
+  let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
@@ -528,7 +620,8 @@ function mapDiscoveredPlaces(text: string, count: number, categories: Category[]
   const places: Place[] = [];
   const stamp = Date.now();
 
-  for (const raw of parsed.places || []) {
+  for (const value of isRecord(parsed) ? asRecordArray(parsed.places) : []) {
+    const raw = toRawDiscoveredPlace(value);
     const name = (raw.name || '').trim();
     const city = (raw.city || '').trim();
     const country = (raw.country || '').trim();
@@ -693,8 +786,7 @@ export class AiTravelAgentService {
         (alias) => getPlannerModel(alias),
         async (model) => (await model.generateContent(buildItineraryPrompt(params, user))).response.text()
       );
-      const raw = JSON.parse(text) as RawItinerary;
-      const itinerary = buildItinerary(raw, params);
+      const itinerary = buildItinerary(toRawItinerary(JSON.parse(text)), params);
       if (!itinerary.dayPlans.length) {
         throw new Error('The model returned an itinerary with no daily plans.');
       }

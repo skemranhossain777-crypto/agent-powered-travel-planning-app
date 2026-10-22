@@ -88,7 +88,8 @@ function initAppCheck(): void {
   }
 
   if (debugToken) {
-    (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+    const debugTarget = self as typeof self & { FIREBASE_APPCHECK_DEBUG_TOKEN?: string };
+    debugTarget.FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
   }
 
   // In debug mode the provider isn't consulted; the placeholder key is unused.

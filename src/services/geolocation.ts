@@ -1,4 +1,15 @@
 import { UserLocation } from '../types/travel';
+import { asOptionalString, isRecord } from '../utils/validation';
+
+interface NominatimAddress {
+  city?: string;
+  town?: string;
+  village?: string;
+  municipality?: string;
+  state?: string;
+  country?: string;
+  country_code?: string;
+}
 
 /**
  * Resolves the user's current location through the browser Geolocation API.
@@ -51,10 +62,21 @@ export async function reverseGeocode(location: UserLocation): Promise<UserLocati
     });
     window.clearTimeout(timer);
     if (!res.ok) return location;
-    const data = await res.json();
-    const label = formatPlaceName(data.address);
-    if (!label && !data.address?.country_code) return location;
-    const countryCode = (data.address?.country_code || '').toUpperCase();
+    const raw: unknown = await res.json();
+    if (!isRecord(raw)) return location;
+    const addrRaw = isRecord(raw.address) ? raw.address : {};
+    const address: NominatimAddress = {
+      city: asOptionalString(addrRaw.city),
+      town: asOptionalString(addrRaw.town),
+      village: asOptionalString(addrRaw.village),
+      municipality: asOptionalString(addrRaw.municipality),
+      state: asOptionalString(addrRaw.state),
+      country: asOptionalString(addrRaw.country),
+      country_code: asOptionalString(addrRaw.country_code)
+    };
+    const label = formatPlaceName(address);
+    if (!label && !address.country_code) return location;
+    const countryCode = (address.country_code || '').toUpperCase();
     return { ...location, label: label || undefined, countryCode: countryCode || undefined };
   } catch {
     return location;
@@ -91,7 +113,7 @@ export function currencySymbol(code: string): string {
   return CURRENCY_SYMBOL[code] || code;
 }
 
-function formatPlaceName(addr?: Record<string, string>): string {
+function formatPlaceName(addr?: NominatimAddress): string {
   if (!addr) return '';
   const parts: string[] = [];
   if (addr.city) parts.push(addr.city);
